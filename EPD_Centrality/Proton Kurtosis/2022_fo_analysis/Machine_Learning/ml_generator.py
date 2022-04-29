@@ -63,11 +63,11 @@ are doing UrQMD simulation or actual, STAR data.
 os.chdir(file_loc)
 df = pd.read_pickle('df_protons.pkl')
 refmult3 = df['RefMult3'].to_numpy()
-refmult3 = np.hstack((refmult3[:int(1e6)], refmult3[int(5e6):]))
+refmult3 = refmult3[-2232269:]
 rings = []
 for i in range(32):
     arr = df['r{}'.format(i+1)].to_numpy()
-    arr = np.hstack((arr[:int(1e6)], arr[int(5e6):]))
+    arr = arr[-2232269:]
     rings.append(arr)
 rings = np.asarray(rings)
 target = refmult3
@@ -111,7 +111,7 @@ for i in range(len(actFunc)):
 # TODO Make this into a pandas df for the labels.
 np.save("predictions_{}_{}.npy".format(energy, target_str), predictions)
 
-fig, ax = plt.subplots(2, figsize=(16, 9), constrained_layout=True)
+fig, ax = plt.subplots(1, 2, figsize=(16, 9), constrained_layout=True)
 m_ref = int(np.max(target)*1.2)
 m_epd = np.max(predictions, axis=1)*1.2
 for i in range(2):

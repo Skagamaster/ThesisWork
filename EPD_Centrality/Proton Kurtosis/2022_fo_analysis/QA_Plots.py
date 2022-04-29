@@ -26,7 +26,7 @@ files = []
 for i in os.listdir():
     if int(i[4:12]) not in goodruns:
         print(i, "is a very bad run. Bad run!")
-        continue
+        # continue
     if int(i[4:12]) < 20120000:
         pass
     if i.endswith('root'):
@@ -61,6 +61,7 @@ for i in keys[set_2d]:
     df_2d[i] = data[i].to_numpy()
 for i in pro_keys:
     df_protons[i] = data['Protons'][i].array(library='np')
+df_protons['run'] = np.repeat(files[0][4:12], len(df_protons['RefMult3']))
 refmult[0].append(np.mean(df_protons['RefMult3'].to_numpy()))
 refmult[1].append(np.var(df_protons['RefMult3'].to_numpy()))
 count = 1
@@ -76,11 +77,13 @@ for i in files:
         df_2d[j][0] += data[j].to_numpy()[0]
     for j in pro_keys:
         new_df[j] = data['Protons'][j].array(library='np')
+    new_df['run'] = np.repeat(int(i[4:12]), len(new_df['RefMult3']))
     refmult[0].append(np.mean(new_df['RefMult3'].to_numpy()))
     refmult[1].append(np.var(new_df['RefMult3'].to_numpy()))
     refmult[2].append(i[4:12])
     df_protons = pd.concat((df_protons, new_df), ignore_index=True)
     count += 1
+print("Total events:", len(df_protons['RefMult3']))
 df_1d.to_pickle(r'D:\14Gev\Thesis\QA_df_1d.pkl')
 df_2d.to_pickle(r'D:\14Gev\Thesis\QA_df_2d.pkl')
 df_protons.to_pickle(r'D:\14GeV\Thesis\df_protons.pkl')
@@ -95,7 +98,6 @@ x_labels = [r'$v_x$ (cm)', 'RefMult3', r'$p \cdot q$ ($ \frac{GeV}{c}$)', 'RefMu
 y_labels = [r'$v_y$ (cm)', 'TofMult', r'$\frac{dE}{dx}$ ($\frac{KeV}{cm}$)', r'$\beta\eta1$',
             r'$m^2$ ($\frac{GeV^2}{c^4}$)', r'$\frac{1}{\beta}$']
 
-'''
 fig, ax = plt.subplots(2, 3, figsize=(16, 9), constrained_layout=True)
 for i in range(2):
     for j in range(3):
@@ -118,7 +120,7 @@ for i in range(2):
         ax[i, j].set_ylabel(y_labels[x], fontsize=12)
         fig.colorbar(im, ax=ax[i, j])
 plt.show()
-'''
+
 cuts = ['av_r', 'art_mult', 'pdedx_pq', 'aref_beta', 'ampq', 'abetap']
 fig, ax = plt.subplots(2, 3, figsize=(16, 9), constrained_layout=True)
 for i in range(2):
