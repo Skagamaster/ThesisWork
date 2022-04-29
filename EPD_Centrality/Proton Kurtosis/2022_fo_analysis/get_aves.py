@@ -181,4 +181,4 @@ plt.show()
 
 badruns = np.unique(np.hstack((badruns, emptyruns)))
 # np.save(r'D:\14GeV\Thesis\goodruns.npy', goodruns)
-# np.save(r'D:\14GeV\Thesis\badruns.npy', badruns)
+np.save(r'D:\14GeV\Thesis\more_badruns.npy', badruns)
