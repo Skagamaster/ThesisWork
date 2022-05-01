@@ -943,6 +943,46 @@ def cbwc(arr1, arr2, arr3, central, reverse=False):
     return C
 
 
+def no_cbwc(arr1, arr2, arr3, central, reverse=False):
+    """
+    This is for showing what happens when you don't
+    correct for centrality bin width effects.
+        Args:
+            arr1: The MxN matrix of the correlation amounts from the 2D histogram.
+            arr2: The XxY axis from the 2D hostogram.
+            arr3: The centrality metric to cbwc
+            central: The array of centrality cuts.
+            reverse: False for RM based, True for b based.
+    """
+    arr3 = np.asarray(arr3).astype(float)
+    arr3[np.isnan(arr3)] = 0
+    n = np.sum(arr1, axis=1).astype('int')
+    prot_num = arr2[0][:-1]
+    C = []
+    if reverse is True:
+        central = central[::-1]
+        index = np.hstack((np.where(prot_num > central[0])))
+    else:
+        index = np.hstack((np.where(prot_num <= central[0])))
+    arr = arr3[index]
+    C.append(np.mean(arr))
+    for i in range(1, len(central)):
+        if reverse is True:
+            index = np.hstack((np.where((prot_num > central[i]) & (prot_num <= central[i-1]))))
+        else:
+            index = np.hstack((np.where((prot_num <= central[i]) & (prot_num > central[i-1]))))
+        arr = arr3[index]
+        C.append(np.mean(arr))
+    if reverse is True:
+        index = np.hstack((np.where(prot_num <= central[-1])))
+    else:
+        index = np.hstack((np.where(prot_num > central[-1])))
+    arr = arr3[index]
+    C.append(np.mean(arr))
+    C = np.asarray(C)
+    return C
+
+
 def cum_plot_int(ylabels, target, pro_bins, C, C_labels, xlabels, gev='200'):
     for k in range(4):
         fig, ax = plt.subplots(3, len(ylabels), figsize=(16, 9), constrained_layout=True)

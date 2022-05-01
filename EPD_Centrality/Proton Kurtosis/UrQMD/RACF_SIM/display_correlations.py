@@ -171,6 +171,13 @@ E_cbwc = []
 E_u_cbwc = []
 E_d_cbwc = []
 
+# This is to not use CBWC for comparison
+C_no_cbwc = []
+E_no_cbwc = []
+
+E_u_no_cbwc = []
+E_d_no_cbwc = []
+
 # These are for the non-ratio cumulants (i.e. no volume correction).
 Cc_cbwc = []
 Ec_cbwc = []
@@ -183,6 +190,11 @@ for k in range(4):
     E_u_cbwc.append([])
     E_d_cbwc.append([])
 
+    C_no_cbwc.append([])
+    E_no_cbwc.append([])
+    E_u_no_cbwc.append([])
+    E_d_no_cbwc.append([])
+
     Cc_cbwc.append([])
     Ec_cbwc.append([])
     Ec_u_cbwc.append([])
@@ -193,6 +205,11 @@ for k in range(4):
         E_cbwc[k].append([])
         E_u_cbwc[k].append([])
         E_d_cbwc[k].append([])
+
+        C_no_cbwc[k].append([])
+        E_no_cbwc[k].append([])
+        E_u_no_cbwc[k].append([])
+        E_d_no_cbwc[k].append([])
 
         Cc_cbwc[k].append([])
         Ec_cbwc[k].append([])
@@ -216,6 +233,23 @@ for k in range(4):
                                            pro_bins[i][j],
                                            C_down_test[k][i][j],
                                            centrality[j]))
+
+            C_no_cbwc[k][i].append(rdr.no_cbwc(pro_counts[i][j],
+                                               pro_bins[i][j],
+                                               C[k][i][j],
+                                               centrality[j]))
+            E_no_cbwc[k][i].append(rdr.no_cbwc(pro_counts[i][j],
+                                               pro_bins[i][j],
+                                               E_rat[k][i][j],
+                                               centrality[j]))
+            E_u_no_cbwc[k][i].append(rdr.no_cbwc(pro_counts[i][j],
+                                                 pro_bins[i][j],
+                                                 C_up_test[k][i][j],
+                                                 centrality[j]))
+            E_d_no_cbwc[k][i].append(rdr.no_cbwc(pro_counts[i][j],
+                                                 pro_bins[i][j],
+                                                 C_down_test[k][i][j],
+                                                 centrality[j]))
 
             Cc_cbwc[k][i].append(rdr.cbwc(pro_counts[i][j],
                                           pro_bins[i][j],
@@ -347,7 +381,7 @@ plt.xlabel("Centrality", fontsize=20)
 plt.ylabel(r'$\frac{\sigma^2}{\mu}$', fontsize=20)
 plt.legend()
 plt.tight_layout()
-# plt.show()
+plt.show()
 plt.close()
 
 # This is the one I'm modifying!!!
@@ -389,36 +423,98 @@ plt.legend(fontsize=15)
 # plt.tight_layout()
 plt.show()
 
-# And with error (such that it is, and only some values).
+# Doing some nonsense here to show why we care about cbwc and errorbars.
+ylabels_nocbwc = [r'$X_{RM3}$ no cbwc', r'$X_{RM1}$ no cbwc', 'b (fm) no cbwc',
+                  r'$X_{LW}$ no cbwc', r'$X_{ReLU}$ no cbwc', r'$X_{swish}$ no cbwc',
+                  r'$X_{CNN}$ no cbwc']
+markers = ['o', '8', r'$b$', 's', 'P', '*', 'X', 'D']
+color_nocbwc = ['purple', 'orange', 'black', 'black', 'orange',
+                'purple', 'darkviolet', 'royalblue']
+mar_s = 200
+plt_set = (0, 2, 4)
 plt.figure(figsize=(16, 9))
-plt.title(r'$\mu$ for $\sqrt{s_{NN}}$=19.6 GeV, UrQMD', fontsize=30)
+# plt.title(r'$\mu$ for $\sqrt{s_{NN}}$=19.6 GeV, UrQMD', fontsize=30)
 for j in plt_set:
     if target == 'b':
         if j > 1:
-            plt.errorbar(centralities, C_cbwc[0][-1][j][::-1],
-                         E_cbwc[0][-1][j][::-1],
-                         marker=markers[j], ms=10, alpha=0.5, c=color[j],
-                         label=ylabels[j], lw=0, elinewidth=1, capsize=2)
+            plt.scatter(centralities, C_cbwc[-1][-1][j][::-1],
+                         marker=markers[j], s=mar_s, alpha=0.5, c=color[j],
+                         label=ylabels[j], lw=0)
+            plt.scatter(np.linspace(0.2, 10.2, 11), C_no_cbwc[-1][-1][j][::-1],
+                         marker=markers[j], s=mar_s, alpha=0.5, c=color_nocbwc[j],
+                         label=ylabels_nocbwc[j], lw=0)
         else:
-            plt.errorbar(centralities, C_cbwc[0][-1][j],
-                         E_cbwc[0][-1][j],
-                         marker=markers[j], ms=10, alpha=0.5, c=color[j],
-                         label=ylabels[j], lw=0, elinewidth=1, capsize=2)
+            plt.scatter(centralities, C_cbwc[-1][-1][j],
+                         marker=markers[j], s=mar_s, alpha=0.5, c=color[j],
+                         label=ylabels[j], lw=0)
+            plt.scatter(np.linspace(0.2, 10.2, 11), C_no_cbwc[-1][-1][j],
+                         marker=markers[j], s=mar_s, alpha=0.5, c=color_nocbwc[j],
+                         label=ylabels_nocbwc[j], lw=0)
     else:
         if j == 2:
-            plt.errorbar(centralities, C_cbwc[0][-1][j][::-1],
-                         E_cbwc[0][-1][j][::-1],
-                         marker=markers[j], ms=10, alpha=0.5, c=color[j],
-                         label=ylabels[j], lw=0, elinewidth=1, capsize=2)
+            plt.scatter(centralities, C_cbwc[-1][-1][j][::-1],
+                         marker=markers[j], s=mar_s, alpha=0.5, c=color[j],
+                         label=ylabels[j], lw=0)
+            plt.scatter(np.linspace(0.2, 10.2, 11), C_no_cbwc[-1][-1][j][::-1],
+                         marker=markers[j], s=mar_s, alpha=0.5, c=color_nocbwc[j],
+                         label=ylabels_nocbwc[j], lw=0)
         else:
-            plt.errorbar(centralities, C_cbwc[0][-1][j],
-                         E_cbwc[0][-1][j],
-                         marker=markers[j], ms=10, alpha=0.5, c=color[j],
-                         label=ylabels[j], lw=0, elinewidth=1, capsize=2)
+            plt.scatter(centralities, C_cbwc[-1][-1][j],
+                         marker=markers[j], s=mar_s, alpha=0.5, c=color[j],
+                         label=ylabels[j], lw=0)
+            plt.scatter(np.linspace(0.2, 10.2, 11), C_no_cbwc[-1][-1][j],
+                         marker=markers[j], s=mar_s, alpha=0.5, c=color_nocbwc[j],
+                         label=ylabels_nocbwc[j], lw=0)
 plt.xticks(centralities, labels=centralities, rotation=45)
-plt.xlabel("Centrality", fontsize=20)
-plt.ylabel(r'$\mu$', fontsize=20)
-plt.legend()
+plt.xlabel("Centrality", fontsize=30)
+plt.ylabel(r'$\kappa\sigma^2$', fontsize=30)
+plt.legend(fontsize=30)
+plt.show()
+plt.figure(figsize=(16, 9))
+# plt.title(r'$\mu$ for $\sqrt{s_{NN}}$=19.6 GeV, UrQMD', fontsize=30)
+for j in plt_set:
+    if target == 'b':
+        if j > 1:
+            plt.errorbar(centralities, C_cbwc[-1][-1][j][::-1],
+                         E_cbwc[-1][-1][j][::-1],
+                         marker=markers[j], ms=20, alpha=0.5, c=color[j],
+                         label=ylabels[j], lw=0, elinewidth=1, capsize=2)
+            plt.errorbar(np.linspace(0.2, 10.2, 11), C_no_cbwc[-1][-1][j][::-1],
+                         E_no_cbwc[-1][-1][j][::-1],
+                         marker=markers[j], ms=20, alpha=0.5, c=color_nocbwc[j],
+                         label=ylabels_nocbwc[j], lw=0, elinewidth=1, capsize=2)
+        else:
+            plt.errorbar(centralities, C_cbwc[-1][-1][j],
+                         E_cbwc[-1][-1][j],
+                         marker=markers[j], ms=20, alpha=0.5, c=color[j],
+                         label=ylabels[j], lw=0, elinewidth=1, capsize=2)
+            plt.errorbar(np.linspace(0.2, 10.2, 11), C_no_cbwc[-1][-1][j],
+                         E_no_cbwc[-1][-1][j],
+                         marker=markers[j], ms=20, alpha=0.5, c=color_nocbwc[j],
+                         label=ylabels_nocbwc[j], lw=0, elinewidth=1, capsize=2)
+    else:
+        if j == 2:
+            plt.errorbar(centralities, C_cbwc[-1][-1][j][::-1],
+                         E_cbwc[-1][-1][j][::-1],
+                         marker=markers[j], ms=20, alpha=0.5, c=color[j],
+                         label=ylabels[j], lw=0, elinewidth=1, capsize=2)
+            plt.errorbar(np.linspace(0.2, 10.2, 11), C_no_cbwc[-1][-1][j][::-1],
+                         E_no_cbwc[-1][-1][j][::-1],
+                         marker=markers[j], ms=20, alpha=0.5, c=color_nocbwc[j],
+                         label=ylabels_nocbwc[j], lw=0, elinewidth=1, capsize=2)
+        else:
+            plt.errorbar(centralities, C_cbwc[-1][-1][j],
+                         E_cbwc[-1][-1][j],
+                         marker=markers[j], ms=20, alpha=0.5, c=color[j],
+                         label=ylabels[j], lw=0, elinewidth=1, capsize=2)
+            plt.errorbar(np.linspace(0.2, 10.2, 11), C_no_cbwc[-1][-1][j],
+                         E_no_cbwc[-1][-1][j],
+                         marker=markers[j], ms=20, alpha=0.5, c=color_nocbwc[j],
+                         label=ylabels_nocbwc[j], lw=0, elinewidth=1, capsize=2)
+plt.xticks(centralities, labels=centralities, rotation=45)
+plt.xlabel("Centrality", fontsize=30)
+plt.ylabel(r'$\kappa\sigma^2$', fontsize=30)
+plt.legend(fontsize=30)
 plt.show()
 
 # And with error (such that it is, and only some values).
