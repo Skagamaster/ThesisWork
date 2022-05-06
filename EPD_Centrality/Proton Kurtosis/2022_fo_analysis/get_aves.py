@@ -35,9 +35,16 @@ ve_set = [43, 44, 45]
 vt_set = [46, 47, 48, 49, 50]
 for i in range(32):
     ve_set.append(i + 51)
+count = 0
+full_set = []
 for i in os.listdir():
     if i.endswith('txt'):
         arr = np.loadtxt(i)
+        if count == 0:
+            full_set = np.copy(arr)
+        else:
+            full_set = np.vstack((full_set, arr))
+        count += 1
         if arr[2] > 100:
             stds.append(arr[43:])
             # This is to turn var into SEM.
@@ -51,6 +58,9 @@ for i in os.listdir():
         else:
             emptyruns.append(i[4:12])  # We'll add this to the badrun list after plotting.
             continue
+np.save(r'D:\14GeV\Thesis\full_ave_std_set.npy', full_set)
+plt.plot(full_set[:, 3])
+plt.show()
 aves = np.asarray(aves).T
 stds = np.asarray(stds).T
 
