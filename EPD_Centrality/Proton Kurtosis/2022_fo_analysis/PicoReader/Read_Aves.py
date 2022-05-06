@@ -49,6 +49,7 @@ for i in range(len(aves)):
     run_arr = runs[0][arr]
     bad_runs.append(run_arr)
 bad_runs = np.unique(np.hstack(bad_runs))
+np.save('badruns.npy', bad_runs)
 index_up = []
 for i in range(len(runs[0])):
     if runs[0][i] in bad_runs:
@@ -89,13 +90,13 @@ for i in range(4):
         ax[i, j].errorbar(rid[index_up], aves[set2[x]][index_up],
                           yerr=stds[set2[x]][index_up], marker='o', ms=2,
                           mfc='None', elinewidth=0.2, color='orange',
-                          label="Bad Runs", ecolor='orange')
+                          label="Bad Runs", ecolor='orange', lw=0)
         ax[i, j].axhline(ave_ave[set2[x]], c='r', ls='--', label=r"$\mu$")
         ax[i, j].axhline(ave_ave[set2[x]]+std_ave[set2[x]], c='b', ls='--', label=r"$\sigma$")
         ax[i, j].axhline(ave_ave[set2[x]]-std_ave[set2[x]], c='b', ls='--')
         ax[i, j].set_ylim(ave_ave[set2[x]]-3*std_ave[set2[x]],
                             ave_ave[set2[x]]+3*std_ave[set2[x]])
-        ax[i, j].set_ylabel(columns[set2[x]], loc='top', fontsize=15)
+        ax[i, j].set_ylabel(columns[set2[x]], fontsize=15)
         ax[i, j].set_xlabel("RunID", loc='right', fontsize=15)
 ax[0, 0].legend(fontsize=15)
 plt.show()
@@ -110,13 +111,13 @@ for i in range(4):
         ax[i, j].errorbar(rid[index_up], aves[set2[x]][index_up],
                           yerr=stds[set2[x]][index_up], marker='o', ms=2,
                           mfc='None', elinewidth=0.2, color='orange',
-                          label="Bad Runs", ecolor='orange')
+                          label="Bad Runs", ecolor='orange', lw=0)
         ax[i, j].axhline(ave_ave[set2[x]], c='r', ls='--', label=r"$\mu$")
         ax[i, j].axhline(ave_ave[set2[x]]+std_ave[set2[x]], c='b', ls='--', label=r"$\sigma$")
         ax[i, j].axhline(ave_ave[set2[x]]-std_ave[set2[x]], c='b', ls='--')
         ax[i, j].set_ylim(ave_ave[set2[x]]-3*std_ave[set2[x]],
                             ave_ave[set2[x]]+3*std_ave[set2[x]])
-        ax[i, j].set_ylabel(columns[set2[x]], loc='top', fontsize=15)
+        ax[i, j].set_ylabel(columns[set2[x]], fontsize=15)
         ax[i, j].set_xlabel("RunID", loc='right', fontsize=15)
 ax[0, 0].legend(fontsize=15)
 plt.show()
