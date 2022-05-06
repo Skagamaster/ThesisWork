@@ -41,10 +41,6 @@ aves = []  # Holds average data run by run
 stds = []  # Holds std data run by run
 runs = [[], [], []]  # Holds runID, event#, track# (in case needed for statistics)
 running_counter = 0
-# Let's make a Pandas dataframe.
-columns = ['<RefMult3>', '<v_z>', '<v_r>', 'zdcx']
-for i in range(32):
-    columns.append('<ring_{}>'.format(i+1))
 
 print("Chewing on file:")
 for i in files:
