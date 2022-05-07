@@ -63,7 +63,7 @@ nSigCal = []
 nSigCalGauss = []
 count = 0
 print("Working on file:")
-for k in range(len(files[:50])):
+for k in range(len(files)):
     data = up.open(files[k])
     if (k+1) % 100 == 0:
         print(k+1)
@@ -114,7 +114,6 @@ for k in range(len(files[:50])):
     for i in range(len(nSigs)):
         a = int(i/4)
         b = i % 4
-        two_gauss = True
         try:
             popt_2gauss, pcov_2gauss = curve_fit(double_gaussian, xaxes[i], nSigs[i],
                                                  p0=[np.max(nSigs[i]), 0, 1, np.max(nSigs[i]), -5, 1],
@@ -133,18 +132,21 @@ for k in range(len(files[:50])):
             ax[a, b].fill_between(xaxes[i], gauss_peak_1.min(), gauss_peak_1, facecolor="green", alpha=0.5)
             ax[a, b].plot(xaxes[i], gauss_peak_2, "y")
             ax[a, b].fill_between(xaxes[i], gauss_peak_2.min(), gauss_peak_2, facecolor="yellow", alpha=0.5)
-        except RuntimeError as e:  # Fall back to fitting with a single Gaussian if the above fails.
+        except Exception as e:  # Fall back to fitting with a single Gaussian if the above fails.
             print("File", files[k], "p_T", pt_vals[i], "is too close for missles; switching to guns.")
-            two_gauss = False
-            popt_gauss, pcov_gauss = curve_fit(gaussian, xaxes[i], nSigs[i],
-                                               p0=[np.max(nSigs[i]), 0, 1],
-                                               maxfev=int(1e5))
-            nSigCalGauss[count].append(popt_gauss[1])
-            gauss_peak_1 = gaussian(xaxes[i], *popt_gauss)
-            ax[a, b].plot(xaxes[i], nSigs[i], color='black', label='raw')
-            ax[a, b].plot(xaxes[i], gaussian(xaxes[i], *popt_gauss), lw=3, color='orange', label="Gaussian Fit")
-            ax[a, b].plot(xaxes[i], gauss_peak_1, "g")
-            ax[a, b].fill_between(xaxes[i], gauss_peak_1.min(), gauss_peak_1, facecolor="green", alpha=0.5)
+            try:
+                popt_gauss, pcov_gauss = curve_fit(gaussian, xaxes[i], nSigs[i],
+                                                   p0=[np.max(nSigs[i]), 0, 1],
+                                                   maxfev=int(1e5))
+                nSigCalGauss[count].append(popt_gauss[1])
+                gauss_peak_1 = gaussian(xaxes[i], *popt_gauss)
+                ax[a, b].plot(xaxes[i], nSigs[i], color='black', label='raw')
+                ax[a, b].plot(xaxes[i], gaussian(xaxes[i], *popt_gauss), lw=3, color='orange', label="Gaussian Fit")
+                ax[a, b].plot(xaxes[i], gauss_peak_1, "g")
+                ax[a, b].fill_between(xaxes[i], gauss_peak_1.min(), gauss_peak_1, facecolor="green", alpha=0.5)
+            except Exception as e:
+                print("You win, file", files[k], "p_T", pt_vals[i])
+                nSigCalGauss[count].append(0)  # This is just giving up.
         ax[a, b].axvline(true_mu, color='blue', lw=3, label='p peak')
         ax[a, b].set_xlabel(r'$n\sigma_{p}$', fontsize=12, loc='right')
         ax[a, b].set_ylabel('N', fontsize=12, loc='top')
@@ -168,3 +170,6 @@ nSigCalGauss = np.asarray(nSigCalGauss)
 np.savetxt(r'D:\14GeV\Thesis\nSigmaProton_sg.txt', nSigCal, fmt='%f', delimiter=',', newline='},{')
 np.savetxt(r'D:\14GeV\Thesis\nSigmaProton_2g.txt', nSigCalGauss, fmt='%f', delimiter=',', newline='},{')
 np.savetxt(r'D:\14GeV\Thesis\runs.txt', runs.T, fmt='%d', delimiter=',', newline=',')
+np.save(r'D:\14GeV\Thesis\PythonArrays\nSigmaProton_sg.npy', nSigCal)
+np.save(r'D:\14GeV\Thesis\PythonArrays\nSigmaProton_2g.npy', nSigCalGauss)
+np.save(r'D:\14GeV\Thesis\PythonArrays\runs.npy', runs.T)
