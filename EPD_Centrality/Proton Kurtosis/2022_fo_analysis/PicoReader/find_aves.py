@@ -8,6 +8,17 @@
 #
 # /
 
+"""
+This code is to get a few things you'll need in order to
+start the analysis. You'll need average quantities in order
+to find your bad runs (processed in Read_Aves.py). But first,
+you need to calibrate the EPD in order to have correct values.
+This functionality is included.
+In addition, you'll want some histograms for both display
+purposes (to see if everything works as it ought) and to
+calibrate nSigmaProton mean shift (done in nSigmaCalibrate.py).
+"""
+
 import uproot as up
 import awkward as ak
 import numpy as np
@@ -19,23 +30,28 @@ import pico_reader as rdr
 data_direct = r'F:\2019Picos\14p5GeV\Runs'  # Directory where the picos live
 save_direct = r'D:\14GeV\Thesis\PythonArrays'  # Directory for saving results
 
-'''
-Let's start by testing this out on a single pico and see if what we got
-by using Welford's Algorithm in ROOT was a success.
-'''
 os.chdir(data_direct)
 files = []
 for i in os.listdir():
     if i.endswith('root'):
         files.append(i)
-
-'''
+"""
 These are to load the files for 14.5 GeV nMIP calibration for the EPD in FastOffline.
-'''
+"""
 cal_set = np.asarray([94, 105, 110, 113, 114, 123, 138, 139])
 cal_files = []
 for i in cal_set:
     cal_files.append(np.loadtxt(r'D:\14GeV\ChiFit\adc{}.txt'.format(i), delimiter=','))
+
+"""
+These are to hold pileup correlations for later cuts.
+"""
+rt_count, rt_binsX, rt_binsY = np.histogram2d([0], [0], bins=(1000, 1700),
+                                              range=((0, 1000), (0, 1700)))
+rm_count, rm_binsX, rm_binsY = np.histogram2d([0], [0], bins=1000,
+                                              range=((0, 1000), (0, 500)))
+rb_count, rb_binsX, rb_binsY = np.histogram2d([0], [0], bins=(1000, 400),
+                                              range=((0, 1000), (0, 400)))
 
 aves = []  # Holds average data run by run
 stds = []  # Holds std data run by run
@@ -58,6 +74,23 @@ for i in files:
         runs[0].append(pico.run_id)
         runs[1].append(len(pico.refmult3[index]))
         runs[2].append(len(ak.to_numpy(ak.flatten(pico.p_t[index][index_t]))))
+        # Pileup histogram filling
+        rt_count += np.histogram2d(pico.refmult3, pico.tofmult,
+                                   bins=(1000, 1700), range=((0, 1000), (0, 1700)))[0]
+        rm_count += np.histogram2d(pico.refmult3, pico.tofmatch,
+                                   bins=1000, range=((0, 1000), (0, 500)))[0]
+        rb_count += np.histogram2d(pico.refmult3, pico.beta_eta_1,
+                                   bins=(1000, 400), range=((0, 1000), (0, 400)))[0]
+        nSigmaProton = []  # For nSigmaProton mean shift calibrations
+        nsig = ak.to_numpy(ak.flatten(pico.nsigma_proton[index][index_t]))
+        p_flat = ak.to_numpy(ak.flatten(pico.p_g[index][index_t]))
+        for j in range(13):
+            count, bins = np.histogram(nsig[(p_flat > 0.1 * j + 0.1) & (p_flat <= 0.1 * j + 0.2)],
+                                       bins=400, range=(-10, 10))
+            nSigmaProton.append(count)
+        nSigmaProton = np.asarray(nSigmaProton)
+        np.save(r'D:\14GeV\Thesis\PythonArrays\nSigmaProtonCal\{}_nSigRaw.npy'.format(pico.run_id),
+                nSigmaProton)
         aves.append(np.hstack((np.mean([pico.refmult3[index],
                                         pico.v_z[index],
                                         pico.v_r[index],
@@ -93,3 +126,9 @@ os.chdir(save_direct)
 np.save('ave_runs.npy', runs)
 np.save('ave_aves.npy', aves)
 np.save('ave_stds.npy', stds)
+np.save('ref_tof_mult.npy', rt_count)
+np.save('ref_tof_mult_bins.npy', np.asarray([rt_binsX, rt_binsY], dtype='object'))
+np.save('ref_tof_match.npy', rm_count)
+np.save('ref_tof_match_bins.npy', np.asarray([rm_binsX, rm_binsY], dtype='object'))
+np.save('ref_beta.npy', rb_count)
+np.save('ref_beta_bins.npy', np.asarray([rb_binsX, rb_binsY], dtype='object'))

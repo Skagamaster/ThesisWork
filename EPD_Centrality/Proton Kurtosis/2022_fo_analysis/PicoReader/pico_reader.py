@@ -222,7 +222,7 @@ class PicoDST:
                 self.nhitsmax = data["PicoDst"]["Track"]["Track.mNHitsMax"].array()
                 self.nhitsmax = ak.where(self.nhitsmax == 0, 1e-10, self.nhitsmax)  # to avoid infinities
                 self.dedx = data["PicoDst"]["Track"]["Track.mDedx"].array()
-                self.nsigma_proton = data["PicoDst"]["Track"]["Track.mNSigmaProton"].array()
+                self.nsigma_proton = data["PicoDst"]["Track"]["Track.mNSigmaProton"].array() / 1000.0
                 self.charge = ak.where(self.nhitsfit >= 0, 1, -1)
                 self.beta = data["PicoDst"]["BTofPidTraits"]["BTofPidTraits.mBTofBeta"].array() / 20000.0
                 self.tofpid = data["PicoDst"]["BTofPidTraits"]["BTofPidTraits.mTrackIndex"].array()
