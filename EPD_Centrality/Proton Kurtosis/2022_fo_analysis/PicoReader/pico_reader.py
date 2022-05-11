@@ -160,6 +160,9 @@ class PicoDST:
         self.rapidity = None
         self.nhitsmax = None
         self.nsigma_proton = None
+        self.nsigma_pion = None
+        self.nsigma_electron = None
+        self.nsigma_kaon = None
         self.tofpid = None
         self.m_2 = None
         self.charge = None
@@ -223,6 +226,9 @@ class PicoDST:
                 self.nhitsmax = ak.where(self.nhitsmax == 0, 1e-10, self.nhitsmax)  # to avoid infinities
                 self.dedx = data["PicoDst"]["Track"]["Track.mDedx"].array()
                 self.nsigma_proton = data["PicoDst"]["Track"]["Track.mNSigmaProton"].array() / 1000.0
+                self.nsigma_pion = data["PicoDst"]["Track"]["Track.mNSigmaPion"].array() / 1000.0
+                self.nsigma_electron = data["PicoDst"]["Track"]["Track.mNSigmaElectron"].array() / 1000.0
+                self.nsigma_kaon = data["PicoDst"]["Track"]["Track.mNSigmaKaon"].array() / 1000.0
                 self.charge = ak.where(self.nhitsfit >= 0, 1, -1)
                 self.beta = data["PicoDst"]["BTofPidTraits"]["BTofPidTraits.mBTofBeta"].array() / 20000.0
                 self.tofpid = data["PicoDst"]["BTofPidTraits"]["BTofPidTraits.mTrackIndex"].array()
