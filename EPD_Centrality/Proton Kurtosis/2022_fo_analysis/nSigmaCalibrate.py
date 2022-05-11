@@ -20,6 +20,9 @@ to 0 is taken as the nSigmaProton calibrated mean value.
 This method takes a more physics based approach and fits the
 spectra with 2 Gaussian functions, taking the mean of the
 one closest to 0 as the nSigmaProton calibrated mean value.
+The fitting will try first a 2-Gaussian fit, then a single
+Gaussian, then fall back to a Savitsky-Golay filter (and will
+ultimately just leave the mean peak at 0 if all else fails).
 """
 
 import numpy as np
@@ -48,6 +51,7 @@ def gaussian(x, A, mu, sigma):
     return A*(1/(sigma*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-mu)/sigma)**2)))
 
 
+# NOTE: You can easily use this template to make fit functions for more than 2 Gaussians.
 def double_gaussian(x, A1, mu1, sigma1, A2, mu2, sigma2):
     return A1*(1/(sigma1*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-mu1)/sigma1)**2))) + \
             A2*(1/(sigma2*(np.sqrt(2*np.pi))))*(np.exp((-1.0/2.0)*(((x-mu2)/sigma2)**2)))
