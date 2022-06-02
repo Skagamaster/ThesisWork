@@ -39,6 +39,7 @@ for i in range(2):
                 badruns.append(runlist[k])
                 index[i][j].append(k)
 badruns = np.unique(badruns)
+np.save(r"D:\14GeV\Thesis\PythonArrays\badruns_protons.npy", badruns)
 
 for i in range(2):
     for j in range(2):

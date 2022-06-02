@@ -115,7 +115,7 @@ rb_count, rb_binsX, rb_binsY = np.histogram2d([0], [0], bins=(1000, 400),
 # m^2 vs p*q
 mpq_count, mpq_binsX, mpq_binsY = np.histogram2d([0], [0], bins=a, range=((-5, 5), (0, 1.5)))
 # 1/beta vs momentum
-bp_count, bp_binsX, bp_binsY = np.histogram2d([0], [0], bins=a, range=((0, 10), (0.5, 3.6)))
+bp_count, bp_binsX, bp_binsY = np.histogram2d([0], [0], bins=a, range=((0.5, 3.6), (0, 10)))
 # dE/dx vs p*q
 dEp_count, dEp_binsX, dEp_binsY = np.histogram2d([0], [0], bins=a, range=((-3, 3), (0, 31)))
 # Transverse vertex position (after cuts)
@@ -132,13 +132,13 @@ arb_count, arb_binsX, arb_binsY = np.histogram2d([0], [0], bins=(1000, 400),
 # m^2 vs p*q (after cuts)
 ampq_count, ampq_binsX, ampq_binsY = np.histogram2d([0], [0], bins=a, range=((-5, 5), (0, 1.5)))
 # 1/beta vs momentum (after cuts)
-abp_count, abp_binsX, abp_binsY = np.histogram2d([0], [0], bins=a, range=((0, 10), (0.5, 3.6)))
+abp_count, abp_binsX, abp_binsY = np.histogram2d([0], [0], bins=a, range=((0.5, 3.6), (0, 10)))
 # dE/dx vs p*q (after cuts)
 adEp_count, adEp_binsX, adEp_binsY = np.histogram2d([0], [0], bins=a, range=((-3, 3), (0, 31)))
 # m^2 vs p*q (after selection)
 pmpq_count, pmpq_binsX, pmpq_binsY = np.histogram2d([0], [0], bins=a, range=((-5, 5), (0, 1.5)))
 # 1/beta vs momentum (after selection)
-pbp_count, pbp_binsX, pbp_binsY = np.histogram2d([0], [0], bins=a, range=((0, 10), (0.5, 3.6)))
+pbp_count, pbp_binsX, pbp_binsY = np.histogram2d([0], [0], bins=a, range=((0.5, 3.6), (0, 10)))
 # dE/dx vs p*q (after selection)
 pdEp_count, pdEp_binsX, pdEp_binsY = np.histogram2d([0], [0], bins=a, range=((-3, 3), (0, 31)))
 """
@@ -199,7 +199,7 @@ for file in sorted(files):
         dca_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.dca)), bins=a, range=(0, 5))[0]
         eta_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.eta)), bins=a, range=(-3, 3))[0]
         rap_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.rapidity)), bins=a, range=(-6, 6))[0]
-        nhq_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.nhitsfit * pico_low.charge)),
+        nhq_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.nhitsfit)),
                                   bins=b, range=(-80, 80))[0]
         nhde_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.nhitsdedx)), bins=c, range=(0, 85))[0]
         nhr_count += np.histogram(np.divide(1 + np.absolute(ak.to_numpy(ak.flatten(pico_low.nhitsfit))),
@@ -213,12 +213,13 @@ for file in sorted(files):
         rb_count += np.histogram2d(pico_low.refmult3, pico_low.beta_eta_1,
                                    bins=(1000, 400), range=((0, 1000), (0, 400)))[0]
         tof_ind = pico_low.tofpid
-        mpq_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_low.m_2)),
-                                    ak.to_numpy(ak.flatten(pico_low.p_g[tof_ind] * pico_low.charge[tof_ind])),
+        mpq_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_low.p_g[tof_ind] * pico_low.charge[tof_ind])),
+                                    ak.to_numpy(ak.flatten(pico_low.m_2)),
                                     bins=a, range=((-5, 5), (0, 1.5)))[0]
         beta = ak.where(pico_low.beta == 0, 1e-10, pico_low.beta)
-        bp_count += np.histogram2d(1 / ak.to_numpy(ak.flatten(beta)), ak.to_numpy(ak.flatten(pico_low.p_g[tof_ind])),
-                                   bins=a, range=((0, 10), (0.5, 3.6)))[0]
+        bp_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_low.p_g[tof_ind])),
+                                   1 / ak.to_numpy(ak.flatten(beta)),
+                                   bins=a, range=((0.5, 3.6), (0, 10)))[0]
         # dE/dx vs p*q
         dEp_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_low.charge * pico_low.p_g)),
                                     ak.to_numpy(ak.flatten(pico_low.dedx)), bins=a, range=((-3, 3), (0, 31)))[0]
@@ -243,9 +244,9 @@ for file in sorted(files):
         aeta_count += np.histogram(ak.to_numpy(ak.flatten(pico_high.eta)), bins=a, range=(-3, 3))[0]
         arap_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.rapidity)), bins=a, range=(-6, 6))[0]
         arap_count += np.histogram(ak.to_numpy(ak.flatten(pico_high.rapidity)), bins=a, range=(-6, 6))[0]
-        anhq_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.nhitsfit * pico_low.charge)),
+        anhq_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.nhitsfit)),
                                    bins=b, range=(-80, 80))[0]
-        anhq_count += np.histogram(ak.to_numpy(ak.flatten(pico_high.nhitsfit * pico_high.charge)),
+        anhq_count += np.histogram(ak.to_numpy(ak.flatten(pico_high.nhitsfit)),
                                    bins=b, range=(-80, 80))[0]
         anhde_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.nhitsdedx)), bins=c, range=(0, 85))[0]
         anhde_count += np.histogram(ak.to_numpy(ak.flatten(pico_high.nhitsdedx)), bins=c, range=(0, 85))[0]
@@ -262,12 +263,12 @@ for file in sorted(files):
                                           bins=a, range=((0, 1000), (0, 500)))[0]
         arb_count += np.histogram2d(pico_low.refmult3, pico_low.beta_eta_1,
                                     bins=(1000, 400), range=((0, 1000), (0, 400)))[0]
-        ampq_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_high.m_2)),
-                                     ak.to_numpy(ak.flatten(pico_high.p_g * pico_high.charge)),
+        ampq_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_high.p_g * pico_high.charge)),
+                                     ak.to_numpy(ak.flatten(pico_high.m_2)),
                                      bins=a, range=((-5, 5), (0, 1.5)))[0]
         abeta = ak.where(pico_high.beta == 0, 1e-10, pico_high.beta)
-        abp_count += np.histogram2d(1 / ak.to_numpy(ak.flatten(abeta)), ak.to_numpy(ak.flatten(pico_high.p_g)),
-                                    bins=a, range=((0, 10), (0.5, 3.6)))[0]
+        abp_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_high.p_g)), 1 / ak.to_numpy(ak.flatten(abeta)),
+                                    bins=a, range=((0.5, 3.6), (0, 10)))[0]
         adEp_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_low.charge * pico_low.p_g)),
                                      ak.to_numpy(ak.flatten(pico_low.dedx)), bins=a, range=((-3, 3), (0, 31)))[0]
         adEp_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_high.charge * pico_high.p_g)),
@@ -283,8 +284,8 @@ for file in sorted(files):
                                      ak.to_numpy(ak.flatten(pico_high.p_g * pico_high.charge)),
                                      bins=a, range=((-5, 5), (0, 1.5)))[0]
         pbeta = ak.where(pico_high.beta == 0, 1e-10, pico_high.beta)
-        pbp_count += np.histogram2d(1 / ak.to_numpy(ak.flatten(pbeta)), ak.to_numpy(ak.flatten(pico_high.p_g)),
-                                    bins=a, range=((0, 10), (0.5, 3.6)))[0]
+        pbp_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_high.p_g)),1 / ak.to_numpy(ak.flatten(pbeta)),
+                                    bins=a, range=((0.5, 3.6), (0, 10)))[0]
         pdEp_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_low.charge * pico_low.p_g)),
                                      ak.to_numpy(ak.flatten(pico_low.dedx)), bins=a, range=((-3, 3), (0, 31)))[0]
         pdEp_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_high.charge * pico_high.p_g)),
