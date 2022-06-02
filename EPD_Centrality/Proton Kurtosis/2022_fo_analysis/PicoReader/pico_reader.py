@@ -108,7 +108,7 @@ class EPD_Hits:
             array = ak.flatten(epd_flat)
             cal_vals = cal_file[array]
             cal_vals = ak.unflatten(cal_vals, counts)
-            self.nMip = ak.where(self.status_is_good, self.adc/cal_vals, 0)
+            self.nMip = ak.where(self.status_is_good, self.adc / cal_vals, 0)
         else:
             self.nMip = ak.where(self.status_is_good, self.mnMip, 0)
         # nMIP truncation
@@ -180,14 +180,15 @@ class PicoDST:
         if data_file is not None:
             self.import_data(data_file)
 
-    def import_data(self, data_in, cal_file=None):
+    def import_data(self, data_in, cal_file=None, nsig_cals=None):
         """This imports the data. You must have the latest versions
         of uproot and awkward installed on your machine (uproot4 and
         awkward 1.0 as of the time of this writing).
         Use pip install uproot awkward.
         Args:
             data_in (str): The path to the picoDst ROOT file
-            cal_file(file): Calibration file for EPD (None by default)"""
+            cal_file (file): Calibration file for EPD (None by default)
+            nsig_cals (float): Calibration numbers for nSigma values"""
         try:
             with up.open(data_in) as data:
                 self.num_events = len(data["PicoDst"]["Event"]["Event.mPrimaryVertexX"].array())
@@ -229,6 +230,12 @@ class PicoDST:
                 self.nsigma_pion = data["PicoDst"]["Track"]["Track.mNSigmaPion"].array() / 1000.0
                 self.nsigma_electron = data["PicoDst"]["Track"]["Track.mNSigmaElectron"].array() / 1000.0
                 self.nsigma_kaon = data["PicoDst"]["Track"]["Track.mNSigmaKaon"].array() / 1000.0
+                if nsig_cals is not None:
+                    for j in range(11):
+                        self.nsigma_proton = ak.where((self.p_g > 0.1 * j + 0.1) &
+                                                      (self.p_g <= 0.1 * j + 0.2),
+                                                      self.nsigma_proton - nsig_cals[j],
+                                                      self.nsigma_proton)
                 self.charge = ak.where(self.nhitsfit >= 0, 1, -1)
                 self.beta = data["PicoDst"]["BTofPidTraits"]["BTofPidTraits.mBTofBeta"].array() / 20000.0
                 self.tofpid = data["PicoDst"]["BTofPidTraits"]["BTofPidTraits.mTrackIndex"].array()
@@ -269,7 +276,7 @@ class PicoDST:
 
         # except ValueError:  # Skip empty picos.
         #     print("ValueError at: " + data_in)  # Identifies the misbehaving file.
-        except KeyError:  # Skip non empty picos that have no data.
+        except KeyError:  # Skip non-empty picos that have no data.
             print("KeyError at: " + data_in)  # Identifies the misbehaving file.
 
     def event_cuts(self, v_r_cut=2.0, v_z_cut=30.0, v_cut=1.0e-5,
@@ -280,67 +287,77 @@ class PicoDST:
                  (self.tofmult >= (np.multiply(tofmult_refmult[1][0], self.refmult3) + tofmult_refmult[1][1])) &
                  (self.tofmatch >= (np.multiply(tofmatch_refmult[0], self.refmult3) + tofmatch_refmult[1])) &
                  (self.beta_eta_1 >= (np.multiply(beta_refmult[0], self.refmult3) + beta_refmult[1])) &
-                 (abs(self.v_x) >= v_cut) & (abs(self.v_x) >= v_cut) & (abs(self.v_y) >= v_cut))
+                 (abs(self.v_x) >= v_cut) & (abs(self.v_y) >= v_cut) & (abs(self.v_z) >= v_cut))
         self.v_x, self.v_y, self.v_z, self.v_r, self.refmult3, self.tofmult, \
-        self.tofmatch, self.beta_eta_1, self.p_t, self.p_g, self.phi, self.dca, \
-        self.eta, self.nhitsfit, self.nhitsdedx, self.m_2, self.charge, self.beta, \
-        self.dedx, self.zdcx, self.rapidity, self.nhitsmax, self.nsigma_proton, \
-        self.tofpid, self.epd_hits.nMip, self.epd_hits.row, self.epd_hits.mID, \
-        self.vz_vpd, self.epd_hits.mnMip, self.epd_hits.status_is_good, self.epd_hits.EW = \
+            self.tofmatch, self.beta_eta_1, self.p_t, self.p_g, self.phi, self.dca, \
+            self.eta, self.nhitsfit, self.nhitsdedx, self.m_2, self.charge, self.beta, \
+            self.dedx, self.zdcx, self.rapidity, self.nhitsmax, self.nsigma_proton, \
+            self.tofpid, self.vz_vpd = \
             index_cut(index, self.v_x, self.v_y, self.v_z, self.v_r, self.refmult3,
                       self.tofmult, self.tofmatch, self.beta_eta_1, self.p_t, self.p_g,
                       self.phi, self.dca, self.eta, self.nhitsfit, self.nhitsdedx,
                       self.m_2, self.charge, self.beta, self.dedx, self.zdcx,
                       self.rapidity, self.nhitsmax, self.nsigma_proton, self.tofpid,
-                      self.epd_hits.nMip, self.epd_hits.row, self.epd_hits.mID, self.vz_vpd,
-                      self.epd_hits.mnMip, self.epd_hits.status_is_good, self.epd_hits.EW)
+                      self.vz_vpd)
+        new_epd = []
+        for i in range(32):
+            new_epd.append(self.epd_hits[i][index])
+        new_epd = ak.Array(new_epd)
+        self.epd_hits = new_epd
 
     def track_qa_cuts(self, nhitsdedx_cut=5, nhitsfit_cut=20, ratio=0.52, dca_cut=1.0,
                       pt_low_cut=0.4, pt_high_cut=2.0, rapid_cut=0.5):
         index = ((self.nhitsdedx > nhitsdedx_cut) & (np.absolute(self.nhitsfit) > nhitsfit_cut) &
-                 (np.divide(1 + np.absolute(self.nhitsfit), 1 + self.nhitsmax) > ratio) &
+                     (np.divide(1 + np.absolute(self.nhitsfit), 1 + self.nhitsmax) > ratio) &
                  (self.dca < dca_cut) & (self.p_t > pt_low_cut) &
                  (self.p_t < pt_high_cut) & (np.absolute(self.rapidity) <= rapid_cut))
         self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit, self.nhitsdedx, self.charge, self.dedx, \
-        self.rapidity, self.nhitsmax, self.nsigma_proton = \
-            index_cut(index, self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit, self.nhitsdedx,
-                      self.charge, self.dedx, self.rapidity, self.nhitsmax, self.nsigma_proton)
+            self.rapidity, self.nhitsmax, self.nsigma_proton = \
+            index_cut(index, self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit,
+                      self.nhitsdedx, self.charge, self.dedx, self.rapidity, self.nhitsmax,
+                      self.nsigma_proton)
 
     def track_qa_cuts_tof(self, nhitsdedx_cut=5, nhitsfit_cut=20, ratio=0.52, dca_cut=1.0,
                           pt_low_cut=0.4, pt_high_cut=2.0, rapid_cut=0.5):
-        self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit, self.nhitsdedx, self.charge, self.dedx, \
-        self.rapidity, self.nhitsmax, self.nsigma_proton = \
-            index_cut(self.tofpid, self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit, self.nhitsdedx,
-                      self.charge, self.dedx, self.rapidity, self.nhitsmax, self.nsigma_proton)
+        self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit, self.nhitsdedx,\
+            self.charge, self.dedx, self.rapidity, self.nhitsmax, self.nsigma_proton = \
+            index_cut(self.tofpid, self.p_t, self.p_g, self.phi, self.dca, self.eta,
+                      self.nhitsfit, self.nhitsdedx, self.charge, self.dedx, self.rapidity,
+                      self.nhitsmax, self.nsigma_proton)
         index = ((self.nhitsdedx > nhitsdedx_cut) & (np.absolute(self.nhitsfit) > nhitsfit_cut) &
                  (np.divide(1 + np.absolute(self.nhitsfit), 1 + self.nhitsmax) > ratio) &
                  (self.dca < dca_cut) & (self.p_t > pt_low_cut) &
                  (self.p_t < pt_high_cut) & (np.absolute(self.rapidity) <= rapid_cut))
-        self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit, self.nhitsdedx, self.charge, self.dedx, \
-        self.rapidity, self.nhitsmax, self.nsigma_proton, self.beta, self.m_2 = \
-            index_cut(index, self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit, self.nhitsdedx,
-                      self.charge, self.dedx, self.rapidity, self.nhitsmax, self.nsigma_proton, self.beta, self.m_2)
+        self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit, self.nhitsdedx,\
+            self.charge, self.dedx, self.rapidity, self.nhitsmax, self.nsigma_proton,\
+            self.beta, self.m_2 = \
+            index_cut(index, self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit,
+                      self.nhitsdedx, self.charge, self.dedx, self.rapidity, self.nhitsmax,
+                      self.nsigma_proton, self.beta, self.m_2)
 
-    def select_protons_low(self, nsigma_cut=2000.0, pt_high_cut=0.8, pg_cut=1.0,
+    def select_protons_low(self, nsigma_cut=2.0, pt_high_cut=0.8, pg_cut=1.0,
                            mass_low_cut=0.6, mass_high_cut=1.2):
-        index = ((np.abs(self.nsigma_proton) <= nsigma_cut) & (self.p_t < pt_high_cut) & (self.p_g <= pg_cut))
-        self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit, self.nhitsdedx, self.charge, self.dedx, \
-        self.rapidity, self.nhitsmax, self.nsigma_proton = \
-            index_cut(index, self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit, self.nhitsdedx,
-                      self.charge, self.dedx, self.rapidity, self.nhitsmax, self.nsigma_proton)
+        index = ((np.abs(self.nsigma_proton) <= nsigma_cut) & (self.p_t < pt_high_cut) &
+                 (self.p_g <= pg_cut))
+        self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit, self.nhitsdedx,\
+            self.charge, self.dedx, self.rapidity, self.nhitsmax, self.nsigma_proton = \
+            index_cut(index, self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit,
+                      self.nhitsdedx, self.charge, self.dedx, self.rapidity, self.nhitsmax,
+                      self.nsigma_proton)
         protons = ak.where(self.charge > 0, 1, 0)
         antiprotons = ak.where(self.charge < 0, 1, 0)
         self.protons = ak.sum(protons, axis=-1)
         self.antiprotons = ak.sum(antiprotons, axis=-1)
 
-    def select_protons_high(self, nsigma_cut=2000.0, pt_low_cut=0.8, pg_cut=3.0,
+    def select_protons_high(self, nsigma_cut=2.0, pt_low_cut=0.8, pg_cut=3.0,
                             mass_low_cut=0.6, mass_high_cut=1.2):
         index = ((np.abs(self.nsigma_proton) <= nsigma_cut) & (self.p_t >= pt_low_cut) &
                  (self.p_g <= pg_cut) & (self.m_2 >= mass_low_cut) & (self.m_2 <= mass_high_cut))
-        self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit, self.nhitsdedx, self.charge, self.dedx, \
-        self.rapidity, self.nhitsmax, self.nsigma_proton = \
-            index_cut(index, self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit, self.nhitsdedx,
-                      self.charge, self.dedx, self.rapidity, self.nhitsmax, self.nsigma_proton)
+        self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit, self.nhitsdedx, self.beta, \
+            self.charge, self.dedx, self.rapidity, self.nhitsmax, self.nsigma_proton, self.m_2 = \
+            index_cut(index, self.p_t, self.p_g, self.phi, self.dca, self.eta, self.nhitsfit,
+                      self.nhitsdedx, self.beta, self.charge, self.dedx, self.rapidity, self.nhitsmax,
+                      self.nsigma_proton, self.m_2)
         protons = ak.where(self.charge > 0, 1, 0)
         antiprotons = ak.where(self.charge < 0, 1, 0)
         self.protons = ak.sum(protons, axis=-1)

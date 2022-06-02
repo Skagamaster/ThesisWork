@@ -1,5 +1,5 @@
 #
-# \Read mean and variance for quantities from pico based Numpt arrays.
+# \Read mean and variance for quantities from pico based Numpy arrays.
 #
 # \author Skipper Kagamaster
 # \date 05/06/2022

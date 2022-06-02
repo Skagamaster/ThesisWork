@@ -18,119 +18,305 @@ to get the code up and running.
 dataDirect is for the picos to run over
 saveDirect is where the bad run list is stored
 finalDirect is for what this code finds
-"""
 
+The output will be arrays of the following:
+RunID, events, RefMult3, protons, antiprotons, EPD rings
+All will be eventwise correlated. This makes for a large,
+final data set, but then all the statistical work can be
+performed elsewhere (with the benefit of preserving all
+correlations should you want to change things up, like
+centrality cuts or associations between EPD ring fits).
+"""
+import copy
 import os
+
+import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 import numpy as np
 from pathlib import Path
-import pico_reader as fn
+import pico_reader as rdr
 from scipy.signal import savgol_filter as sgf
 import uproot as up
 import awkward as ak
 
-dataDirect = r"E:\2019Picos\14p5GeV\Runs"
-saveDirect = r"C:\Users\dansk\Documents\Thesis\Protons\WIP\QA_Cuts"
-finalDirect = r"C:\Users\dansk\Documents\Thesis\Protons\WIP\Protons\YuCuts"
+dataDirect = r"F:\2019Picos\14p5GeV\Runs"
+saveDirect = r"D:\14GeV\Thesis\PythonArrays"
 
 os.chdir(saveDirect)
-bad_runs = np.load("badRunsYu.npy", allow_pickle=True)
-
-# We can make one more cut: average protons.
-Ave_proton = [[], []]
-
-# Yu's cuts for RefMult3:
-RefCuts = np.asarray((10, 21, 41, 72, 118, 182, 270, 392, 472))
-
-# This is to save our protons.
-proton_counts = []
-for i in range(len(RefCuts)+1):
-    proton_counts.append([])
-
-# Arrays to hold our histogram data. We need to have a separate array
-# for the bins (this should go to pandas in the future as it's easier
-# to keep track of, but alas we live in the present).
+bad_runs = np.load("badruns.npy", allow_pickle=True)
+"""
+We need to make one more cut: average protons. If this is already included
+in badruns.npy, ignore this bit.
+"""
+proton_ave = [[[], []], [[], []]]  # For high and low p ranges, p and p-
+proton_std = [[[], []], [[], []]]
+runlist = []
+"""
+Arrays to hold our histogram data.
+"""
+# TODO Make histogramming a lot more concise; this is a mess.
 a = 1000
-b = 161
-c = 86
+b = 160
+c = 85
 d = 101
-v_z = np.zeros((2, a))  # bins included in this one
-v_r = np.zeros((a, a))
-v_r_bins = np.zeros((2, a))
-RefMult_TOFMult = np.zeros((1700, a))
-RefMult_TOFMult_bins = np.zeros((2, a))
-RefMult_TOFMatch = np.zeros((a, a))
-RefMult_TOFMatch_bins = np.zeros((2, a))
-RefMult_TOFMatch1 = np.zeros((a, a))
-RefMult_TOFMatch_bins1 = np.zeros((2, a))
-RefMult_BetaEta = np.zeros((400, a))
-RefMult_BetaEta_bins = np.zeros((2, a))
-p_t = np.zeros((2, a))  # bins included in this one
-phi = np.zeros((2, a))  # bins included in this one
-dca = np.zeros((2, a))  # bins included in this one
-eta = np.zeros((2, a))  # bins included in this one
-nHitsFit_charge = np.zeros((2, b))  # bins included in this one
-nHits_dEdX = np.zeros((2, c))  # bins included in this one
-m_pq = np.zeros((a, a))
-m_pq_bins = np.zeros((2, a))  # bins included in this one
-beta_p = np.zeros((a, a))
-beta_p_bins = np.zeros((2, a))  # bins included in this one
-dEdX_pq = np.zeros((a, a))
-dEdX_pq_bins = np.zeros((2, a))  # bins included in this one
-ref_sum = np.zeros((2, a))  # bins included in this one
-proton_sum = []
-for i in range(a):
-    proton_sum.append([])
+###########################################
+# ------------ 1D histograms ------------ #
+###########################################
+# Z vertex position
+v_z_counts, v_z_bins = np.histogram(0, a, range=(-100, 100))
+# Transverse momentum
+p_t_count, p_t_bins = np.histogram(0, bins=a, range=(0, 6))
+# Azimuthal angle
+phi_count, phi_bins = np.histogram(0, bins=a, range=(-np.pi - 0.2, np.pi + 0.2))
+# Distance of closest approach
+dca_count, dca_bins = np.histogram(0, bins=a, range=(0, 5))
+# Pseudorapidity
+eta_count, eta_bins = np.histogram(0, bins=a, range=(-3, 3))
+# Rapidity (based on proton mass)
+rap_count, rap_bins = np.histogram(0, bins=a, range=(-6, 6))
+# Number of hits in TPC * charge value
+nhq_count, nhq_bins = np.histogram(0, bins=b, range=(-80, 80))
+# Number of hits used to construct dE/dx
+nhde_count, nhde_bins = np.histogram(0, bins=c, range=(0, 85))
+# "Ratio" of NHits to NhitsMax (see construction)
+nhr_count, nhr_bins = np.histogram(0, bins=200, range=(0, 5))
+# Z vertex position (after cuts)
+av_z_counts, av_z_bins = np.histogram(0, a, range=(-100, 100))
+# Transverse momentum (after cuts)
+ap_t_count, ap_t_bins = np.histogram(0, bins=a, range=(0, 6))
+# Azimuthal angle (after cuts)
+aphi_count, aphi_bins = np.histogram(0, bins=a, range=(-np.pi - 0.2, np.pi + 0.2))
+# Distance of closest approach (after cuts)
+adca_count, adca_bins = np.histogram(0, bins=a, range=(0, 5))
+# Pseudorapidity (after cuts)
+aeta_count, aeta_bins = np.histogram(0, bins=a, range=(-3, 3))
+# Rapidity (based on proton mass) (after cuts)
+arap_count, arap_bins = np.histogram(0, bins=a, range=(-6, 6))
+# Number of hits in TPC * charge value (after cuts)
+anhq_count, anhq_bins = np.histogram(0, bins=b, range=(-80, 80))
+# Number of hits used to construct dE/dx (after cuts)
+anhde_count, anhde_bins = np.histogram(0, bins=c, range=(0, 85))
+# "Ratio" of NHits to NhitsMax (see construction) (after cuts)
+anhr_count, anhr_bins = np.histogram(0, bins=200, range=(0, 5))
+###########################################
+# ------------ 2D histograms ------------ #
+###########################################
+# Transverse vertex position
+v_r_counts, v_r_binsX, v_r_binsY = np.histogram2d([0], [0], bins=a, range=((-10, 10), (-10, 10)))
+# RefMult3 vs ToFMult
+rt_mult_counts, rt_mult_binsX, rt_mult_binsY = np.histogram2d([0], [0], bins=(a, 1700),
+                                                              range=((0, 1000), (0, 1700)))
+# RefMult3 vs ToF matched tracks
+rt_match_count, rt_match_binsX, rt_match_binsY = np.histogram2d([0], [0], bins=a,
+                                                                range=((0, 1000), (0, 500)))
+# RefMult3 vs BetaEta1 (see construction)
+rb_count, rb_binsX, rb_binsY = np.histogram2d([0], [0], bins=(1000, 400),
+                                              range=((0, 1000), (0, 400)))
+# m^2 vs p*q
+mpq_count, mpq_binsX, mpq_binsY = np.histogram2d([0], [0], bins=a, range=((-5, 5), (0, 1.5)))
+# 1/beta vs momentum
+bp_count, bp_binsX, bp_binsY = np.histogram2d([0], [0], bins=a, range=((0, 10), (0.5, 3.6)))
+# dE/dx vs p*q
+dEp_count, dEp_binsX, dEp_binsY = np.histogram2d([0], [0], bins=a, range=((-3, 3), (0, 31)))
+# Transverse vertex position (after cuts)
+av_r_counts, av_r_binsX, av_r_binsY = np.histogram2d([0], [0], bins=a, range=((-10, 10), (-10, 10)))
+# RefMult3 vs ToFMult (after cuts)
+art_mult_counts, art_mult_binsX, art_mult_binsY = np.histogram2d([0], [0], bins=(a, 1700),
+                                                                 range=((0, 1000), (0, 1700)))
+# RefMult3 vs ToF matched tracks (after cuts)
+art_match_count, art_match_binsX, art_match_binsY = np.histogram2d([0], [0], bins=a,
+                                                                   range=((0, 1000), (0, 500)))
+# RefMult3 vs BetaEta1 (see construction) (after cuts)
+arb_count, arb_binsX, arb_binsY = np.histogram2d([0], [0], bins=(1000, 400),
+                                                 range=((0, 1000), (0, 400)))
+# m^2 vs p*q (after cuts)
+ampq_count, ampq_binsX, ampq_binsY = np.histogram2d([0], [0], bins=a, range=((-5, 5), (0, 1.5)))
+# 1/beta vs momentum (after cuts)
+abp_count, abp_binsX, abp_binsY = np.histogram2d([0], [0], bins=a, range=((0, 10), (0.5, 3.6)))
+# dE/dx vs p*q (after cuts)
+adEp_count, adEp_binsX, adEp_binsY = np.histogram2d([0], [0], bins=a, range=((-3, 3), (0, 31)))
+# m^2 vs p*q (after selection)
+pmpq_count, pmpq_binsX, pmpq_binsY = np.histogram2d([0], [0], bins=a, range=((-5, 5), (0, 1.5)))
+# 1/beta vs momentum (after selection)
+pbp_count, pbp_binsX, pbp_binsY = np.histogram2d([0], [0], bins=a, range=((0, 10), (0.5, 3.6)))
+# dE/dx vs p*q (after selection)
+pdEp_count, pdEp_binsX, pdEp_binsY = np.histogram2d([0], [0], bins=a, range=((-3, 3), (0, 31)))
+"""
+These are to load the files for 14.5 GeV nMIP calibration for the EPD in FastOffline.
+"""
+cal_set = np.asarray([94, 105, 110, 113, 114, 123, 138, 139])
+cal_files = []
+for i in cal_set:
+    cal_files.append(np.loadtxt(r'D:\14GeV\ChiFit\adc{}.txt'.format(i), delimiter=','))
+"""
+And now to load up our nSigmaProton mean shift calibrations, separated into
+bins in p_T in 0.1 increments from 0.1 to 1.2 (11 bins). run_cal is the
+corresponding run for each 11D entry in nSigCal.
+"""
+nSigCal = np.load(r'D:\14GeV\Thesis\PythonArrays\nSigmaCal.npy', allow_pickle=True)
+run_cal = np.load(r'D:\14GeV\Thesis\PythonArrays\runs.npy', allow_pickle=True)
 
-# This is for the run ID (to identify runs to skip from QA).
-Runs = []
-# And it's nice to have a tally of the events you went over
-# for the current analysis.
-Events = 0
-
+"""
+Let's run it!
+"""
 os.chdir(dataDirect)
 r = len(os.listdir())
-r_ = 1300  # For loop cutoff (to test on smaller batches).
-count = 1
+files = []
+for i in os.listdir():
+    if i.endswith('root'):
+        files.append(i)
+count = 0
 print("Working on file:")
-for file in sorted(os.listdir()):
-    # This cuts off the loop when testing.
-
-    if count > 5:
-        break
-
-    # This is to cut off the beginning of the loop.
-    """
-    if count < r_:
-        count += 1
+for file in sorted(files):
+    # This is to omit all runs marked "bad."
+    run_num = int(file[:8])
+    if run_num in bad_runs:
+        r -= 1
         continue
-    """
     # This is just to show how far along the script is.
     if count % 20 == 0:
-        print(count, "of", r)
-    # This is to make sure it's a ROOT file (it will error otherwise).
-    if Path(file).suffix != '.root':
-        continue
-    # This is to omit all runs marked "bad."
-    run_num = file[:-5]
-    if int(run_num) in bad_runs:
-        print("Run", run_num, "skipped for being marked bad.")
-        print("Bad, I tell you. Bad!!")
-        r -= 1
-        continue
-    # Yu's cutoff for nSigmaProton and dE/dx calibration issues.
-    if int(run_num) > 20118040:
-        print("Over the threshold Yu had set for display (20118040).")
-        r -= 1
-        break
-
+        print(count + 1, "of", r)
     data = up.open(file)
     try:
-        data = data["PicoDst"]
+        # Here's the array to hold RefMult3, protons, antiprotons, and EPD eta ring sums.
+        data_array = []
+        for i in range(35):
+            data_array.append([])
+        day = int(file[2:5])
+        cal_index = np.where(cal_set <= day)[0][-1]
+        epd_cal = cal_files[cal_index]
+        nsig_cal_ind = np.argwhere(run_cal == run_num)
+        # Running for non_TOF matched and TOF-matched.
+        # TODO: Make this more elegant.
+        pico_low = rdr.PicoDST()
+        nSigEnter = nSigCal[nsig_cal_ind][0][0]
+        pico_low.import_data(file, cal_file=epd_cal, nsig_cals=nSigEnter)
+
+        # ******** HISTOGRAM FILLING ********
+        v_z_counts += np.histogram(pico_low.v_z, a, range=(-100, 100))[0]
+        p_t_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.p_t)), bins=a, range=(0, 6))[0]
+        phi_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.phi)), bins=a, range=(-np.pi - 0.2, np.pi + 0.2))[0]
+        dca_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.dca)), bins=a, range=(0, 5))[0]
+        eta_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.eta)), bins=a, range=(-3, 3))[0]
+        rap_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.rapidity)), bins=a, range=(-6, 6))[0]
+        nhq_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.nhitsfit * pico_low.charge)),
+                                  bins=b, range=(-80, 80))[0]
+        nhde_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.nhitsdedx)), bins=c, range=(0, 85))[0]
+        nhr_count += np.histogram(np.divide(1 + np.absolute(ak.to_numpy(ak.flatten(pico_low.nhitsfit))),
+                                            1 + ak.to_numpy(ak.flatten(pico_low.nhitsmax))),
+                                  bins=200, range=(0, 5))[0]
+        v_r_counts += np.histogram2d(pico_low.v_x, pico_low.v_y, bins=a, range=((-10, 10), (-10, 10)))[0]
+        rt_mult_counts += np.histogram2d(pico_low.refmult3, pico_low.tofmult,
+                                         bins=(a, 1700), range=((0, 1000), (0, 1700)))[0]
+        rt_match_count += np.histogram2d(pico_low.refmult3, pico_low.tofmatch,
+                                         bins=a, range=((0, 1000), (0, 500)))[0]
+        rb_count += np.histogram2d(pico_low.refmult3, pico_low.beta_eta_1,
+                                   bins=(1000, 400), range=((0, 1000), (0, 400)))[0]
+        tof_ind = pico_low.tofpid
+        mpq_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_low.m_2)),
+                                    ak.to_numpy(ak.flatten(pico_low.p_g[tof_ind] * pico_low.charge[tof_ind])),
+                                    bins=a, range=((-5, 5), (0, 1.5)))[0]
+        beta = ak.where(pico_low.beta == 0, 1e-10, pico_low.beta)
+        bp_count += np.histogram2d(1 / ak.to_numpy(ak.flatten(beta)), ak.to_numpy(ak.flatten(pico_low.p_g[tof_ind])),
+                                   bins=a, range=((0, 10), (0.5, 3.6)))[0]
+        # dE/dx vs p*q
+        dEp_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_low.charge * pico_low.p_g)),
+                                    ak.to_numpy(ak.flatten(pico_low.dedx)), bins=a, range=((-3, 3), (0, 31)))[0]
+        # ******** END OF HISTOGRAM FILLING ********
+
+        # Event cuts
+        pico_low.event_cuts()
+        pico_high = copy.deepcopy(pico_low)
+        # Track cuts
+        pico_low.track_qa_cuts()
+        pico_high.track_qa_cuts_tof()
+
+        # ******** HISTOGRAM FILLING ********
+        av_z_counts += np.histogram(pico_low.v_z, a, range=(-100, 100))[0]
+        ap_t_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.p_t)), bins=a, range=(0, 6))[0]
+        ap_t_count += np.histogram(ak.to_numpy(ak.flatten(pico_high.p_t)), bins=a, range=(0, 6))[0]
+        aphi_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.phi)), bins=a, range=(-np.pi - 0.2, np.pi + 0.2))[0]
+        aphi_count += np.histogram(ak.to_numpy(ak.flatten(pico_high.phi)), bins=a, range=(-np.pi - 0.2, np.pi + 0.2))[0]
+        adca_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.dca)), bins=a, range=(0, 5))[0]
+        adca_count += np.histogram(ak.to_numpy(ak.flatten(pico_high.dca)), bins=a, range=(0, 5))[0]
+        aeta_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.eta)), bins=a, range=(-3, 3))[0]
+        aeta_count += np.histogram(ak.to_numpy(ak.flatten(pico_high.eta)), bins=a, range=(-3, 3))[0]
+        arap_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.rapidity)), bins=a, range=(-6, 6))[0]
+        arap_count += np.histogram(ak.to_numpy(ak.flatten(pico_high.rapidity)), bins=a, range=(-6, 6))[0]
+        anhq_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.nhitsfit * pico_low.charge)),
+                                   bins=b, range=(-80, 80))[0]
+        anhq_count += np.histogram(ak.to_numpy(ak.flatten(pico_high.nhitsfit * pico_high.charge)),
+                                   bins=b, range=(-80, 80))[0]
+        anhde_count += np.histogram(ak.to_numpy(ak.flatten(pico_low.nhitsdedx)), bins=c, range=(0, 85))[0]
+        anhde_count += np.histogram(ak.to_numpy(ak.flatten(pico_high.nhitsdedx)), bins=c, range=(0, 85))[0]
+        anhr_count += np.histogram(np.divide(1 + np.absolute(ak.to_numpy(ak.flatten(pico_low.nhitsfit))),
+                                             1 + ak.to_numpy(ak.flatten(pico_low.nhitsmax))),
+                                   bins=200, range=(0, 5))[0]
+        anhr_count += np.histogram(np.divide(1 + np.absolute(ak.to_numpy(ak.flatten(pico_high.nhitsfit))),
+                                             1 + ak.to_numpy(ak.flatten(pico_high.nhitsmax))),
+                                   bins=200, range=(0, 5))[0]
+        av_r_counts += np.histogram2d(pico_low.v_x, pico_low.v_y, bins=a, range=((-10, 10), (-10, 10)))[0]
+        art_mult_counts += np.histogram2d(pico_low.refmult3, pico_low.tofmult,
+                                          bins=(a, 1700), range=((0, 1000), (0, 1700)))[0]
+        art_match_count += np.histogram2d(pico_low.refmult3, pico_low.tofmatch,
+                                          bins=a, range=((0, 1000), (0, 500)))[0]
+        arb_count += np.histogram2d(pico_low.refmult3, pico_low.beta_eta_1,
+                                    bins=(1000, 400), range=((0, 1000), (0, 400)))[0]
+        ampq_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_high.m_2)),
+                                     ak.to_numpy(ak.flatten(pico_high.p_g * pico_high.charge)),
+                                     bins=a, range=((-5, 5), (0, 1.5)))[0]
+        abeta = ak.where(pico_high.beta == 0, 1e-10, pico_high.beta)
+        abp_count += np.histogram2d(1 / ak.to_numpy(ak.flatten(abeta)), ak.to_numpy(ak.flatten(pico_high.p_g)),
+                                    bins=a, range=((0, 10), (0.5, 3.6)))[0]
+        adEp_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_low.charge * pico_low.p_g)),
+                                     ak.to_numpy(ak.flatten(pico_low.dedx)), bins=a, range=((-3, 3), (0, 31)))[0]
+        adEp_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_high.charge * pico_high.p_g)),
+                                     ak.to_numpy(ak.flatten(pico_high.dedx)), bins=a, range=((-3, 3), (0, 31)))[0]
+        # ******** END OF HISTOGRAM FILLING ********
+
+        # PID cuts
+        pico_low.select_protons_low()
+        pico_high.select_protons_high()
+
+        # ******** HISTOGRAM FILLING ********
+        pmpq_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_high.m_2)),
+                                     ak.to_numpy(ak.flatten(pico_high.p_g * pico_high.charge)),
+                                     bins=a, range=((-5, 5), (0, 1.5)))[0]
+        pbeta = ak.where(pico_high.beta == 0, 1e-10, pico_high.beta)
+        pbp_count += np.histogram2d(1 / ak.to_numpy(ak.flatten(pbeta)), ak.to_numpy(ak.flatten(pico_high.p_g)),
+                                    bins=a, range=((0, 10), (0.5, 3.6)))[0]
+        pdEp_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_low.charge * pico_low.p_g)),
+                                     ak.to_numpy(ak.flatten(pico_low.dedx)), bins=a, range=((-3, 3), (0, 31)))[0]
+        pdEp_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_high.charge * pico_high.p_g)),
+                                     ak.to_numpy(ak.flatten(pico_high.dedx)), bins=a, range=((-3, 3), (0, 31)))[0]
+        # ******** END OF HISTOGRAM FILLING ********
+
+        proton_ave[0][0].append(np.mean(pico_low.protons))
+        proton_ave[0][1].append(np.mean(pico_low.antiprotons))
+        proton_ave[1][0].append(np.mean(pico_high.protons))
+        proton_ave[1][1].append(np.mean(pico_high.antiprotons))
+        proton_std[0][0].append(np.std(pico_low.protons) / np.sqrt(len(pico_low.protons)))
+        proton_std[0][1].append(np.std(pico_low.antiprotons) / np.sqrt(len(pico_low.antiprotons)))
+        proton_std[1][0].append(np.std(pico_high.protons) / np.sqrt(len(pico_high.protons)))
+        proton_std[1][1].append(np.std(pico_high.antiprotons) / np.sqrt(len(pico_high.antiprotons)))
+
+        data_array[0] = np.hstack((data_array[0], np.asarray(pico_low.protons + pico_high.protons)))
+        data_array[1] = np.hstack((data_array[1], np.asarray(pico_low.antiprotons + pico_high.antiprotons)))
+        data_array[2] = np.hstack((data_array[2], pico_low.refmult3))
+        for i in range(32):
+            data_array[i+3] = np.hstack((data_array[i+3], np.asarray(pico_low.epd_hits[i])))
+        data_array = np.asarray(data_array)
+        # And save it for later analysis.
+        np.save(saveDirect + r'\Analysis_Proton_Arrays' + r'\{}_protons.npy'.format(run_num),
+                data_array)
+
+        runlist.append(pico_low.run_id)
+        count += 1
     except ValueError:  # Skip empty picos.
         r -= 1
         print("Run number", run_num, "is empty.")  # Identifies the misbehaving file.
         continue
-    except KeyError:  # Skip non empty picos that have no data.
+    except KeyError:  # Skip non-empty picos that have no data.
         r -= 1
         print("Run number", run_num, "has no data.")  # Identifies the misbehaving file.
         continue
@@ -138,358 +324,83 @@ for file in sorted(os.listdir()):
         print("Darn it!", e.__class__, "occurred in run", run_num)
         r -= 1
         continue
-    """
-    These are the event and track loops. It's written such that it
-    will ignore any iterations that are way "out of bounds." This shouldn't
-    be necessary, but it's here just in case. The stuff after "try" is
-    the "loop" proper (since we're in Python, it's not really a loop ...),
-    and the following "except" is for the really high outliers ("IndexError"
-    means the indicies don't match). This will toss all the data from that
-    run, not just the outlier that caused the issue, so this is only for
-    troubleshooting. If you did your job right, you'll never see the error.
-    If you see the error, something needs to be corrected.
-    """
-    try:
-        Runs.append(file[:-5])
-
-        # Event level quantities and cuts.
-        vX = ak.to_numpy(ak.flatten(data["Event"]["Event.mPrimaryVertexX"].array()))
-        vY = ak.to_numpy(ak.flatten(data["Event"]["Event.mPrimaryVertexY"].array()))
-        vZ = ak.to_numpy(ak.flatten(data["Event"]["Event.mPrimaryVertexZ"].array()))
-        vR = np.power((np.power(vX, 2)+np.power(vY, 2)), (1/2))
-        ZDCx = ak.to_numpy(ak.flatten(data["Event"]["Event.mZDCx"].array()))
-
-        # Let's make some event cuts.
-        event_cuts = ((vR <= 1.0) & (np.absolute(vZ) <= 30.0))
-        vX, vY, vZ, vR = vX[event_cuts], vY[event_cuts], vZ[event_cuts], vR[event_cuts]
-
-        RefMult3 = ak.to_numpy(ak.flatten(data["Event"]["Event.mRefMult3PosEast"].array() +
-                                          data["Event"]["Event.mRefMult3PosWest"].array() +
-                                          data["Event"]["Event.mRefMult3NegEast"].array() +
-                                          data["Event"]["Event.mRefMult3NegWest"].array())[event_cuts])
-        TofMult = ak.to_numpy(ak.flatten(data["Event"]["Event.mbTofTrayMultiplicity"].array())[event_cuts])
-        TofMatch_ = ak.to_numpy(ak.flatten(data["Event"]["Event.mNBTOFMatch"].array())[event_cuts])
-
-        pX = data["Track"]["Track.mGMomentumX"].array()[event_cuts]
-        pY = data["Track"]["Track.mGMomentumY"].array()[event_cuts]
-        pY = ak.where(pY == 0.0, 1e-10, pY)  # to avoid infinities
-        pZ = data["Track"]["Track.mGMomentumZ"].array()[event_cuts]
-        pT = np.power((np.power(pX, 2) + np.power(pY, 2)), (1 / 2))
-        pG = np.power((np.power(pX, 2) + np.power(pY, 2) + np.power(pZ, 2)), (1 / 2))
-
-        Eta = np.arcsinh(np.divide(pZ, np.sqrt(np.add(np.power(pX, 2), np.power(pY, 2)))))
-        rapidity = fn.rapidity_awk(pZ)
-
-        DcaX = data["Track"]["Track.mOriginX"].array()[event_cuts]-vX
-        DcaY = data["Track"]["Track.mOriginY"].array()[event_cuts]-vY
-        DcaZ = data["Track"]["Track.mOriginZ"].array()[event_cuts]-vZ
-        Dca = np.power((np.power(DcaX, 2) + np.power(DcaY, 2) + np.power(DcaZ, 2)), (1/2))
-
-        nHitsDedx = data["Track"]["Track.mNHitsDedx"].array()[event_cuts]
-        nHitsFit = data["Track"]["Track.mNHitsFit"].array()[event_cuts]
-        nHitsMax = data["Track"]["Track.mNHitsMax"].array()[event_cuts]
-        nHitsMax = ak.where(nHitsMax == 0, 1e-10, nHitsMax)  # to avoid infinities
-        dEdX = data["Track"]["Track.mDedx"].array()[event_cuts]
-        nSigmaProton = data["Track"]["Track.mNSigmaProton"].array()[event_cuts]
-        # We need to split our tracks into those which are Tof matched and those which aren't.
-        # Track level quantities. Only Tof match for p > 0.8.
-        TofPid = data["BTofPidTraits"]["BTofPidTraits.mTrackIndex"].array()[event_cuts]
-        # Scaling for beta is a STAR thing; see StPicoBTofPidTraits.h.
-        beta = data["BTofPidTraits"]["BTofPidTraits.mBTofBeta"].array()[event_cuts]/20000.0
-        # Here are the Tof matched arrays.
-        pT_, pG_, Eta_, rapidity_,\
-            Dca_, nHitsDedx_, nHitsFit_,\
-            nHitsMax_, dEdX_, nSigmaProton_, = \
-            pT[TofPid],\
-            pG[TofPid], Eta[TofPid],\
-            rapidity[TofPid], Dca[TofPid],\
-            nHitsDedx[TofPid], nHitsFit[TofPid],\
-            nHitsMax[TofPid], dEdX[TofPid], \
-            nSigmaProton[TofPid]
-
-        # Now for some track level cuts.
-        track_cuts = ((nHitsDedx > 5) & (np.absolute(nHitsFit) > 20) &
-                      (np.divide(np.absolute(nHitsFit), nHitsMax) > 0.52) &
-                      (Dca < 1.0) & (np.absolute(rapidity) <= 0.5) &
-                      (pT >= 0.2) & (pG <= 10.0))
-        pT, pG, Eta, rapidity,\
-            Dca, nHitsDedx, nHitsFit,\
-            nHitsMax, dEdX, nSigmaProton, = \
-            pT[track_cuts],\
-            pG[track_cuts], Eta[track_cuts],\
-            rapidity[track_cuts], Dca[track_cuts],\
-            nHitsDedx[track_cuts], nHitsFit[track_cuts],\
-            nHitsMax[track_cuts], dEdX[track_cuts], \
-            nSigmaProton[track_cuts]
-
-        # And the same for our Tof matched tracks.
-        track_cuts_ = ((nHitsDedx_ > 5) & (np.absolute(nHitsFit_) > 20) &
-                       (np.divide(np.absolute(nHitsFit_), nHitsMax_) > 0.52) &
-                       (Dca_ < 1.0) & (np.absolute(rapidity_) <= 0.5) &
-                       (pT_ >= 0.2) & (pG_ <= 10.0))
-        print("Before ToF match.")
-        pT_, pG_, Eta_, rapidity_,\
-            Dca_, nHitsDedx_, nHitsFit_,\
-            nHitsMax_, dEdX_, nSigmaProton_, \
-            beta = \
-            pT_[track_cuts_],\
-            pG_[track_cuts_], Eta_[track_cuts_],\
-            rapidity_[track_cuts_], Dca_[track_cuts_],\
-            nHitsDedx_[track_cuts_], nHitsFit_[track_cuts_],\
-            nHitsMax_[track_cuts_], dEdX_[track_cuts_], \
-            nSigmaProton_[track_cuts_], beta[track_cuts_]
-        print("After ToF match.")
-
-        # Now for another event level cut (on RefMults). This is
-        # for pileup and unknown nonconformity rejection.
-        beta_eta1_match = ak.where((beta > 0.1) & (np.absolute(Eta_) < 1.0) &
-                                   (np.absolute(Dca_ < 3.0) & (np.absolute(nHitsFit_) > 10)),
-                                   1, 0)
-        beta_eta1 = ak.sum(beta_eta1_match, axis=-1)
-        TofMatch_match = ak.where((Eta < 0.5) & (Dca < 3) & (np.absolute(nHitsFit) > 10), 1, 0)
-        TofMatch = ak.sum(TofMatch_match, axis=-1)
-
-        event_cuts2 = ((TofMult >= (1.352*RefMult3 - 54.08)) & (TofMult <= (2.536*RefMult3 + 200)) &
-                       (TofMatch >= (0.239*RefMult3 - 14.34)) & (beta_eta1 >= (0.447*RefMult3 - 17.88)))
-
-        pT, pG, Eta, rapidity, Dca, nHitsDedx, nHitsFit, nHitsMax, dEdX, nSigmaProton,\
-            RefMult3, TofMult, TofMatch, beta_eta1 = \
-            pT[event_cuts2],\
-            pG[event_cuts2], Eta[event_cuts2], rapidity[event_cuts2], Dca[event_cuts2],\
-            nHitsDedx[event_cuts2], nHitsFit[event_cuts2], nHitsMax[event_cuts2], \
-            dEdX[event_cuts2], nSigmaProton[event_cuts2], RefMult3[event_cuts2], TofMult[event_cuts2],\
-            TofMatch[event_cuts2], beta_eta1[event_cuts2]
-        print("Point delta.")
-        pT_, pG_, Eta_, rapidity_, Dca_, nHitsDedx_, nHitsFit_, nHitsMax_, beta, dEdX_, nSigmaProton_, \
-            RefMult3_, TofMult_, TofMatch_ = \
-            pT_[event_cuts2], pG_[event_cuts2], Eta_[event_cuts2], rapidity_[event_cuts2], Dca_[event_cuts2],\
-            nHitsDedx_[event_cuts2], nHitsFit_[event_cuts2], nHitsMax_[event_cuts2], beta[event_cuts2],\
-            dEdX_[event_cuts2], nSigmaProton_[event_cuts2], RefMult3_[event_cuts2], TofMult_[event_cuts2], \
-            TofMatch_[event_cuts2]
-        Events += len(pT)  # Final event count
-        # charge = ak.where(nHitsFit >= 0, 1, -1)
-        print("Point alpha.")
-
-        # Now that we have all our quantities, let's find some protons!
-
-        # Calibration of nSigmaProton for 0.0 < |p| < 0.8 (assumed 0 otherwise)
-        # First, we'll separate it into discrete groupings of |p|.
-        sig_length = 19
-        nSigmaProton_p = []
-        pT_nS = np.asarray(ak.flatten(pT))
-        nS_nS = np.asarray(ak.flatten(nSigmaProton))
-        nSigmaProton_p.append(nS_nS[(pT_nS <= 0.2)])
-        for k in range(2, sig_length+1):
-            nSigmaProton_p.append(nS_nS[((pT_nS > 0.1*k) & (pT_nS <= 0.1*(k+1)))])
-        nSigmaProton_p = np.asarray(nSigmaProton_p)
-
-        # Now to find the peak of the proton distribution. I'm going to try smoothing the
-        # distributions, then finding the inflection points via a second order derivative.
-        sig_means = []
-        p_count = 0
-        # Turned off for now; it can be turned back on if we use all runs and not just
-        # the ones before Yu's hard cutoff.
-        """
-        for dist in nSigmaProton_p:
-            counter, bins = np.histogram(dist, range=(-10000, 10000), bins=200)
-            sgfProton_3 = sgf(counter, 45, 2)
-            sgfProton_3_2 = sgf(sgfProton_3, 45, 2, deriv=2)
-            infls = bins[:-1][np.where(np.diff(np.sign(sgfProton_3_2)))[0]]
-            sig_mean = 0
-            if infls.size >= 2:
-                infls_bounds = np.sort(np.absolute(infls))
-                first = infls[np.where(np.absolute(infls) == infls_bounds[0])[0][0]]
-                second = infls[np.where(np.absolute(infls) == infls_bounds[1])[0][0]]
-                if first > second:
-                    sig_mean = first-(first-second)/2
-                else:
-                    sig_mean = second-(second-first)/2
-            if p_count >= 10:
-                sig_mean = 0
-            sig_means.append(sig_mean)
-            # The below is to check things; turned off if running over lots of files.
-            # plt.plot(bins[:-1], counter, c="blue", lw=2, label="Raw")
-            # plt.plot(bins[:-1], sgfProton_3, c="red", lw=1, label="Smoothed")
-            # plt.plot(bins[:-1], sgfProton_3_2, c="green", label="2nd derivative")
-            # for k, infl in enumerate(infls, 1):
-            #    plt.axvline(x=infl, color='k', label=f'Inflection Point {k}')
-            # plt.axvline(x=sig_mean, c="pink", label="nSigmaMean")
-            # p_title = r'$p_T$ <= ' + str(0.1*(p_count+2))
-            # plt.title(p_title)
-            # plt.legend()
-            # plt.show()
-            p_count += 1
-        sig_means = np.asarray(sig_means)
-
-        # Now to modify nSigmaProton to be the difference between the values and
-        # the found means.
-        nSigmaProton = ak.where(pT <= 0.2, nSigmaProton-sig_means[0], nSigmaProton)
-        for k in range(1, len(sig_means)):
-            nSigmaProton = ak.where((pT > 0.1*(k+1)) & (pT <= 0.1*(k+2)), nSigmaProton-sig_means[k], nSigmaProton)
-        """
-        # Let's do a mass cut.
-        p_squared = np.power(pG_, 2)
-        b_squared = np.power(beta, 2)
-        b_squared = ak.where(b_squared == 0.0, 1e-10, b_squared)  # to avoid infinities
-        g_squared = (1 - np.power(beta, 2))
-        m_squared = np.divide(np.multiply(p_squared, g_squared), b_squared)
-        # All our proton selection criteria.
-        charge = ak.where((pT > 0.4) & (pT < 2.0) & (abs(nSigmaProton) <= 2000), charge, 0)
-        charge_1 = ak.where((pT*abs(charge) < 0.8) & (pG*abs(charge) <= 1.0), charge, 0)
-        charge_2 = ak.where((pT*abs(charge) >= 0.8) & (pG*abs(charge) <= 3.0) &
-                            (m_squared*abs(charge) >= 0.6) & (m_squared*abs(charge) <= 1.2),
-                            charge, 0)
-        charge = charge_1 + charge_2
-
-        mass_cut = (charge != 0)
-        pT, pG, Eta, rapidity, Dca, nHitsDedx, nHitsFit, nHitsMax, beta,\
-            dEdX, nSigmaProton, charge, m_squared =\
-            pT[mass_cut], pG[mass_cut], Eta[mass_cut],\
-            rapidity[mass_cut], Dca[mass_cut], nHitsDedx[mass_cut], nHitsFit[mass_cut],\
-            nHitsMax[mass_cut], beta[mass_cut], dEdX[mass_cut], nSigmaProton[mass_cut],\
-            charge[mass_cut], m_squared[mass_cut]
-
-        # And here are the protons (we hope). I need to make a similar set for
-        # protons and antiprotons separately.
-        protons = ak.sum(charge, axis=-1)
-        protons = ak.to_numpy(protons)
-        for i in range(a):
-            proton_sum[i].append(protons[RefMult3 == i])
-        Ave_proton[0].append(np.mean(protons))
-        Ave_proton[1].append(np.divide(np.std(protons), len(protons)))
-
-        # *** Turns out the below is garbage. Fixed, but kept in until I finalise the code. ***
-
-        # Now we separate the proton counts by RefMult bin.
-        # This code need to get a LOT tighter (but it's pretty quick as is).
-        proton_counts[0] = np.hstack((proton_counts[0], np.asarray(protons[(RefMult3 >= RefCuts[8])])))
-        proton_counts[9] = np.hstack((proton_counts[9], np.asarray(protons[(RefMult3 < RefCuts[0])])))
-        for j in range(1, 9):
-            x = int(9-j)
-            proton_counts[j] = np.hstack((proton_counts[j],
-                                          np.asarray((protons[((RefMult3 < RefCuts[x]) &
-                                                               (RefMult3 >= RefCuts[x - 1]))]))))
-
-        # *** End of the garbage. ***
-
-        # Now to convert our awkward arrays to NumPy for processing.
-        pT = ak.to_numpy(ak.flatten(pT))
-        pG = ak.to_numpy(ak.flatten(pG))
-        dEdX = ak.to_numpy(ak.flatten(dEdX))
-        nHitsFit = ak.to_numpy(ak.flatten(nHitsFit))
-        nHitsDedx = ak.to_numpy(ak.flatten(nHitsDedx))
-        Dca = ak.to_numpy(ak.flatten(Dca))
-        Eta = ak.to_numpy(ak.flatten(Eta))
-        beta_eta1 = ak.to_numpy(beta_eta1)
-        m_squared = ak.to_numpy(ak.flatten(m_squared))
-        charge = ak.to_numpy(ak.flatten(charge))
-        beta = ak.where(beta == 0.0, 1e-10, beta)  # To avoid infinities
-        beta = np.power(beta, -1)  # For graphing
-        beta = ak.to_numpy(ak.flatten(beta))
-        TofMatch = ak.to_numpy(TofMatch)
-        TofMatch_ = ak.to_numpy(TofMatch_)
-
-        # Now to fill our histograms.
-
-        # m_squared vs p*q
-        counter, binsX, binsY = np.histogram2d(m_squared, np.multiply(pG, charge),
-                                               bins=a, range=((0, 1.5), (-5, 5)))
-        m_pq += counter
-        m_pq_bins = (binsX, binsY)
-
-        # 1/beta vs p
-        counter, binsX, binsY = np.histogram2d(beta, pG, bins=a,
-                                               range=((0.5, 3.6), (0, 10)))
-        beta_p += counter
-        beta_p_bins = (binsX, binsY)
-
-        # dE/dX vs p*q
-        counter, binsX, binsY = np.histogram2d(dEdX, np.multiply(charge, pG), bins=a,
-                                               range=((0, 31), (-3, 3)))
-        dEdX_pq += counter
-        dEdX_pq_bins = (binsX, binsY)
-
-        # transverse vertex position
-        counter, binsX, binsY = np.histogram2d(vY, vX, bins=a,
-                                               range=((-10, 10), (-10, 10)))
-        v_r += counter
-        v_r_bins = (binsX, binsY)
-
-        # ToFMult vs RefMult
-        counter, binsX, binsY = np.histogram2d(TofMult, RefMult3, bins=(1700, a),
-                                               range=((0, 1700), (0, 1000)))
-        RefMult_TOFMult += counter
-        RefMult_TOFMult_bins = np.array((binsX, binsY), dtype=object)
-
-        # nToFMatch vs RefMult3
-        counter, binsX, binsY = np.histogram2d(TofMatch, RefMult3, bins=a,
-                                               range=((0, 500), (0, 1000)))
-        RefMult_TOFMatch += counter
-        RefMult_TOFMatch_bins = (binsX, binsY)
-
-        # nToFMatch vs RefMult3 (check to see if we don't have to calculate it)
-        counter, binsX, binsY = np.histogram2d(TofMatch_, RefMult3, bins=a,
-                                               range=((0, 500), (0, 1000)))
-        RefMult_TOFMatch1 += counter
-        RefMult_TOFMatch_bins1 = (binsX, binsY)
-
-        # RefMult vs beta_eta1
-        counter, binsX, binsY = np.histogram2d(beta_eta1, RefMult3,
-                                               bins=(400, a), range=((0, 400), (0, 1000)))
-        RefMult_BetaEta += counter
-        RefMult_BetaEta_bins = np.array((binsX, binsY), dtype=object)
-
-        # And that's the end of the loop.
-        count += 1
-    except Exception as e:  # For any issues that might pop up.
-        print(e.__class__, "occurred in the main loop.")
-        count += 1
-        continue
-
 print("All files analysed.")
-print("Total events:", Events)
+
+proton_ave = np.asarray(proton_ave)
+proton_std = np.asarray(proton_std)
+runlist = np.asarray(runlist)
 
 # Let's save where we want to save.
-os.chdir(finalDirect)
+saveDirect = saveDirect + r'\Analysis_Histograms'
+os.chdir(saveDirect)
+np.save('proton_ave.npy', proton_ave)
+np.save('proton_std.npy', proton_std)
+np.save('runlist.npy', runlist)
 
-# Proton distributions per RefMult3:
-proton_sum = np.asarray(proton_sum)
-np.save("proton_sum.npy", proton_sum)
+# Deary me, here come the histograms ...
+np.save('v_z.npy', v_z_counts)
+np.save('v_z_bins.npy', v_z_bins)
+np.save('p_t.npy', p_t_count)
+np.save('p_t_bins.npy', p_t_bins)
+np.save('phi.npy', phi_count)
+np.save('phi_bins.npy', phi_bins)
+np.save('dca.npy', dca_count)
+np.save('dca_bins.npy', dca_bins)
+np.save('eta.npy', eta_count)
+np.save('eta_bins.npy', eta_bins)
+np.save('rap.npy', rap_count)
+np.save('rap_bins.npy', rap_bins)
+np.save('nhq.npy', nhq_count)
+np.save('nhq_bins.npy', nhq_bins)
+np.save('nhde.npy', nhde_count)
+np.save('nhde_bins.npy', nhde_bins)
+np.save('nhr.npy', nhr_count)
+np.save('nhr_bins.npy', nhr_bins)
+np.save('av_z.npy', av_z_counts)
+np.save('ap_t.npy', ap_t_count)
+np.save('aphi.npy', aphi_count)
+np.save('adca.npy', adca_count)
+np.save('aeta.npy', aeta_count)
+np.save('arap.npy', arap_count)
+np.save('anhq.npy', anhq_count)
+np.save('anhde.npy', anhde_count)
+np.save('anhr.npy', anhr_count)
 
-# First to save the average values per run.
-Ave_proton = np.asarray(Ave_proton)
-np.save("Ave_protons.npy", Ave_proton)
+np.save('v_r.npy', v_r_counts)
+np.save('v_r_binsX.npy', v_r_binsX)
+np.save('v_r_binsY.npy', v_r_binsY)
+np.save('rt_mult.npy', rt_mult_counts)
+np.save('rt_mult_binsX.npy', rt_mult_binsX)
+np.save('rt_mult_binsY.npy', rt_mult_binsY)
+np.save('rt_match.npy', rt_match_count)
+np.save('rt_match_binsX.npy', rt_match_binsX)
+np.save('rt_match_binsY.npy', rt_match_binsY)
+np.save('rb.npy', rb_count)
+np.save('rb_binsX.npy', rb_binsX)
+np.save('rb_binsY.npy', rb_binsY)
+np.save('mpq.npy', mpq_count)
+np.save('mpq_binsX.npy', mpq_binsX)
+np.save('mpq_binsY.npy', mpq_binsY)
+np.save('bp.npy', bp_count)
+np.save('bp_binsX.npy', bp_binsX)
+np.save('bp_binsY.npy', bp_binsY)
+np.save('dEp.npy', dEp_count)
+np.save('dEp_binsX.npy', dEp_binsX)
+np.save('dEp_binsY.npy', dEp_binsY)
+np.save('av_r.npy', av_r_counts)
+np.save('art_mult.npy', art_mult_counts)
+np.save('art_match.npy', art_match_count)
+np.save('arb.npy', arb_count)
+np.save('ampq.npy', ampq_count)
+np.save('abp.npy', abp_count)
+np.save('adEp.npy', adEp_count)
+np.save('pmpq.npy', pmpq_count)
+np.save('pbp.npy', pbp_count)
+np.save('pdEp.npy', pdEp_count)
 
-# *** Oh, look: more garbage! ***
-# Then save all the proton values.
-proton_counts = np.asarray(proton_counts)
-np.save("protons.npy", proton_counts)
-# *** End of the garbage. ***
-
-# Now to save the list of runs for QA.
-Runs = np.asarray(Runs)
-np.save("run_list.npy", Runs)
-
-# Now to save our histograms for reconstruction.
-np.save("vR.npy", v_r)
-np.save("vR_bins.npy", v_r_bins)
-np.save("refmult_tofmult.npy", RefMult_TOFMult)
-np.save("refmult_tofmult_bins.npy", RefMult_TOFMult_bins)
-np.save("refmult_tofmatch.npy", RefMult_TOFMatch)
-np.save("refmult_tofmatch_bins.npy", RefMult_TOFMatch_bins)
-np.save("refmult_tofmatch1.npy", RefMult_TOFMatch1)
-np.save("refmult_tofmatch_bins1.npy", RefMult_TOFMatch_bins1)
-np.save("refmult_beta_eta.npy", RefMult_BetaEta)
-np.save("refmult_beta_eta_bins.npy", RefMult_BetaEta_bins)
-np.save("m_pq.npy", m_pq)
-np.save("m_pq_bins.npy", m_pq_bins)
-np.save("beta_p.npy", beta_p)
-np.save("beta_p_bins.npy", beta_p_bins)
-np.save("dEdX_pq.npy", dEdX_pq)
-np.save("dEdX_pq_bins.npy", dEdX_pq_bins)
-np.save("pT.npy", p_t)
-np.save("phi.npy", phi)
-np.save("dca.npy", dca)
-np.save("eta.npy", eta)
-np.save("nhitsfit_charge.npy", nHitsFit_charge)
-np.save("nhits_dedx.npy", nHits_dEdX)
+# Example plot using dE/dx
+X, Y = np.meshgrid(dEp_binsX, dEp_binsY)
+plt.pcolormesh(X, Y, dEp_count.T, norm=LogNorm(), cmap='bone')
+plt.pcolormesh(X, Y, pdEp_count.T, norm=LogNorm(), cmap='jet')
+plt.colorbar()
+plt.show()
