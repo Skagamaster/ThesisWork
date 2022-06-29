@@ -5,20 +5,21 @@ import matplotlib.colors as colors
 import pandas as pd
 from scipy.optimize import curve_fit
 import fit_rings_functions as frf
+from matplotlib.colors import LogNorm
 from numpy.random import default_rng
 rng = default_rng()
 
 # Load the refmult, ring, and n_coll/n_part data.
-n_part, n_coll, data_df = frf.load_data_all()
+n_coll, n_part, predictions = frf.load_data()
 density = True
 
 # I'm going to plot the best fits, so far, as distributions.
-dists = ["GMC", "Refmult3", r"$\Sigma EPD$", r"$\Sigma EPD_{out}$",
-         r"$X_{\zeta, LW}$", r"$X_{\zeta, RELU}$", r"$X_{\zeta, swish}$",
-         r"$X_{\zeta, mish}$"]
-
+dists = ["Refmult3", r"$\Sigma EPD$", r"$\Sigma EPD_{out}$",
+         r"$X_{\zeta, LW}$", r"$X_{\zeta, RELU}$"]
+cent_range = (95, 90, 80, 70, 60, 50, 40, 30, 20, 10)
 GMC = []
 gmc = frf.gmc_dist_generator(n_coll, n_part, 2.0, 0.7, 0.5)
+print(np.percentile(gmc, cent_range)[::-1])
 GMC.append(gmc)
 gmc = frf.gmc_dist_generator(n_coll, n_part, 2.0, 0.7, 0.5)
 GMC.append(gmc)
@@ -26,30 +27,66 @@ gmc = frf.gmc_dist_generator(n_coll, n_part, 2.0, 0.8, 1.0)
 GMC.append(gmc)
 gmc = frf.gmc_dist_generator(n_coll, n_part, 3.0, 0.8, 0.5)
 GMC.append(gmc)
-gmc = frf.gmc_dist_generator(n_coll, n_part, 2.0, 0.7, 0.5)
-GMC.append(gmc)
-gmc = frf.gmc_dist_generator(n_coll, n_part, 2.0, 0.7, 0.5)
-GMC.append(gmc)
-gmc = frf.gmc_dist_generator(n_coll, n_part, 2.0, 0.7, 0.5)
+gmc = frf.gmc_dist_generator(n_coll, n_part, 1.85, 0.65, 0.28)
+print(np.percentile(gmc, cent_range)[::-1])
 GMC.append(gmc)
 
-bins = 50
+bins = 850
 
-fig, ax = plt.subplots(3, 3, figsize=(16, 9), constrained_layout=True)
-for i in range(3):
+fig, ax = plt.subplots(2, 3, figsize=(16, 9), constrained_layout=True)
+for i in range(2):
     for j in range(3):
         x = i*3 + j
-        if x >= 7:
+        if x >= 5:
+            ax[i, j].set_axis_off()
             continue
-        epd = data_df[data_df.columns[x]].to_numpy()
-        ax[i, j].hist(epd, bins=bins, histtype='step', label=dists[x+1], color='red', density=density)
-        ax[i, j].hist(GMC[x], bins=bins, histtype='step', label="GMC", density=density, alpha=0.6)
+        count, bins = np.histogram(predictions[x], bins=bins, range=(-100, bins-100))
+        gmc_count, gmc_bins = np.histogram(GMC[x], bins=bins, range=(-100, bins-100))
+        gmc_count = gmc_count*(count[300]/gmc_count[300])
+        ax[i, j].plot(bins[:-1], count, label=dists[x], color='red', lw=2)
+        ax[i, j].plot(bins[:-1], gmc_count, label="GMC", color='b', lw=2, alpha=0.6)
+        """
+        ax[i, j].hist(predictions[x], bins=bins, histtype='step', label=dists[x], color='red',
+                      density=density, lw=2, range=(-100, bins-100))
+        ax[i, j].hist(GMC[x], bins=bins, histtype='step', label="GMC", density=density, alpha=0.6, lw=2,
+                      range=(-100, bins-100))
+        """
         ax[i, j].legend()
-        ax[i, j].set_xlabel("C (AU)", fontsize=15)
-        ax[i, j].set_ylabel(r"$\frac{dN}{dC}$", fontsize=15)
+        ax[i, j].set_xlabel("X (AU)", fontsize=15)
+        ax[i, j].set_ylabel(r"N (normalised)", fontsize=15)
         ax[i, j].set_yscale('log')
-ax[2, 1].set_axis_off()
-ax[2, 2].set_axis_off()
+plt.show()
+
+chi_2 = np.zeros((2, 10, 10, 10))
+n = np.linspace(1.3, 2, 10)
+p = np.linspace(0.7, 0.9, 10)
+alpha = np.linspace(0.1, 0.3, 10)
+print("Working on n =")
+for i in range(10):
+    print(n[i])
+    for j in range(10):
+        for k in range(10):
+            gmc = frf.gmc_dist_generator(n_coll, n_part, n[i], p[j], alpha[k])
+            count = np.histogram(gmc, bins=700, range=(0, 700), density=True)[0][100:]
+            count_r = np.histogram(predictions[0], bins=700, range=(0, 700), density=True)[0][100:]
+            count_re = np.histogram(predictions[4], bins=700, range=(0, 700), density=True)[0][100:]
+            chi_2[0][i][j][k] = np.corrcoef(count, count_r)[0][1]
+            chi_2[1][i][j][k] = np.corrcoef(count, count_re)[0][1]
+print("Correlations found.")
+np.save(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML\chi_2.npy', chi_2)
+fig, ax = plt.subplots(3, 4, constrained_layout=True, figsize=(16, 9))
+for i in range(3):
+    for j in range(4):
+        x = i*4 + j
+        if x >= 10:
+            ax[i, j].set_axis_off()
+            continue
+        X, Y = np.meshgrid(p, alpha)
+        im = ax[i, j].pcolormesh(X, Y, chi_2[0][x].T, cmap='jet', norm=LogNorm())
+        ax[i, j].set_title('n=' + str(n[x]), fontsize=15)
+        ax[i, j].set_ylabel(r"$\alpha$", fontsize=15)
+        ax[i, j].set_xlabel('p', fontsize=15)
+        fig.colorbar(im, ax=ax[i, j])
 plt.show()
 
 """

@@ -5,6 +5,7 @@ import matplotlib.colors as colors
 import pandas as pd
 from scipy.optimize import curve_fit
 from numpy.random import default_rng
+
 rng = default_rng()
 
 
@@ -37,28 +38,51 @@ def gmc_short(nbd, alpha, n_coll, n_part):
     return n_pp
 
 
+"""
+This goes in load_data if you're going to use the old stuff.
+df = pd.read_pickle(df_file)
+ring_sum = np.zeros(len(df))
+# Sum up all the outer ring sums (both sides of the EPD).
+for i in ring_set:
+    ring_sum = ring_sum + df["ring{}".format(i)].to_numpy()
+ring_sum = np.round(ring_sum).astype('int')
+# Now get the Glauber MC portions.
+"""
+# n_part = np.load(r'{}\Npart_{}.npy'.format(gmc_file, species_energy_n), allow_pickle=True)
+# n_coll = np.load(r'{}\Ncoll_{}.npy'.format(gmc_file, species_energy_n), allow_pickle=True)
+"""
+# Now to get ML predictions for various schemes.
+pred_linear = np.load(pred_loc+"linearpredictions.npy", allow_pickle=True)
+pred_relu = np.load(pred_loc+"relupredictions.npy", allow_pickle=True)
+pred_swish = np.load(pred_loc+"swishpredictions.npy", allow_pickle=True)
+pred_mish = np.load(pred_loc+"mishpredictions.npy", allow_pickle=True)
+predictions = np.array((pred_linear, pred_relu, pred_swish, pred_mish))
+refmult = df['refmult'].to_numpy()
+"""
+
+
 def load_data(df_file=r"C:\Users\dansk\Documents\Thesis\Protons\WIP\FromYu\Test_Results\BigList\out_all.pkl",
               pred_loc=r"C:\Users\dansk\Documents\Thesis\2021_DNP_Work\ML_fits\9_2021\\",
               ring_set=np.array((7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32)),
               species_energy_n="197Au_197Au_14.6_1000000",
               gmc_file=r"C:\Users\dansk\Documents\Thesis\Tristan"):
-    df = pd.read_pickle(df_file)
-    ring_sum = np.zeros(len(df))
-    # Sum up all the outer ring sums (both sides of the EPD).
-    for i in ring_set:
-        ring_sum = ring_sum + df["ring{}".format(i)].to_numpy()
-    ring_sum = np.round(ring_sum).astype('int')
+    # Here's just to load my latest stuff using data.
+    df = pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML\trunc_set.pkl')
+    ring_sum = df['ring1'].to_numpy()
+    for i in range(2, 33):
+        ring_sum += df['ring{}'.format(i)]
+    ring_sum_out = df['ring6'].to_numpy()
+    for i in (7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32):
+        ring_sum_out += df['ring{}'.format(i)]
+    relu = df['relu'].to_numpy()
+    linear = df['linear'].to_numpy()
+    refmult = df['RefMult3'].to_numpy()
+    predictions = np.array((refmult, ring_sum, ring_sum_out, linear, relu))
     # Now get the Glauber MC portions.
     n_part = np.load(r'{}\Npart_{}.npy'.format(gmc_file, species_energy_n), allow_pickle=True)
     n_coll = np.load(r'{}\Ncoll_{}.npy'.format(gmc_file, species_energy_n), allow_pickle=True)
-    # Now to get ML predictions for various schemes.
-    pred_linear = np.load(pred_loc+"linearpredictions.npy", allow_pickle=True)
-    pred_relu = np.load(pred_loc+"relupredictions.npy", allow_pickle=True)
-    pred_swish = np.load(pred_loc+"swishpredictions.npy", allow_pickle=True)
-    pred_mish = np.load(pred_loc+"mishpredictions.npy", allow_pickle=True)
-    predictions = np.array((pred_linear, pred_relu, pred_swish, pred_mish))
-    refmult = df['refmult'].to_numpy()
-    return ring_sum, n_coll, n_part, predictions, refmult
+
+    return n_coll, n_part, predictions
 
 
 def load_data_all(pred_loc=r"C:\Users\dansk\Documents\Thesis\2021_DNP_Work\ML_fits\9_2021\\",
@@ -73,9 +97,9 @@ def load_data_all(pred_loc=r"C:\Users\dansk\Documents\Thesis\2021_DNP_Work\ML_fi
     pred_swish = np.load(pred_loc + "swishpredictions.npy", allow_pickle=True)
     pred_mish = np.load(pred_loc + "mishpredictions.npy", allow_pickle=True)
     # And now the remaining quantities.
-    ring_sum = np.load(pred_loc+"ring_sum.npy", allow_pickle=True)
-    ring_sum_outer = np.load(pred_loc+"ring_sum_outer.npy", allow_pickle=True)
-    refmult = np.load(pred_loc+"refmult3.npy", allow_pickle=True)
+    ring_sum = np.load(pred_loc + "ring_sum.npy", allow_pickle=True)
+    ring_sum_outer = np.load(pred_loc + "ring_sum_outer.npy", allow_pickle=True)
+    refmult = np.load(pred_loc + "refmult3.npy", allow_pickle=True)
     df = pd.DataFrame(np.array((refmult, ring_sum, ring_sum_outer, pred_linear, pred_relu, pred_swish, pred_mish)).T,
                       columns=["refmult", "ring_sum", "ring_sum_outer", "pred_linear",
                                "pred_relu", "pred_swish", "pred_mish"])

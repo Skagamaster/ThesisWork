@@ -220,7 +220,6 @@ for file in sorted(files):
         bp_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_low.p_g[tof_ind])),
                                    1 / ak.to_numpy(ak.flatten(beta)),
                                    bins=a, range=((0.5, 3.6), (0, 10)))[0]
-        # dE/dx vs p*q
         dEp_count += np.histogram2d(ak.to_numpy(ak.flatten(pico_low.charge * pico_low.p_g)),
                                     ak.to_numpy(ak.flatten(pico_low.dedx)), bins=a, range=((-3, 3), (0, 31)))[0]
         # ******** END OF HISTOGRAM FILLING ********

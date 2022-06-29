@@ -14,7 +14,7 @@ import pandas as pd
 import uproot as up
 import awkward as ak
 from scipy.signal import savgol_filter as sgf
-from scipy.stats import skew, kurtosis
+from scipy.stats import skew, kurtosis, moment
 import matplotlib.pyplot as plt
 
 # Speed of light, in m/s
@@ -547,3 +547,42 @@ class EventCuts:
             return EventCuts(self.events.epd_hits, mask=self.mask)
         array = getattr(self.events, name)[self.mask]  # Return a filterd array, a new copy
         return array
+
+
+def moment_arr(arr):
+    u = [np.mean(arr)]
+    for i in range(2, 9):
+        u.append(moment(arr, i))
+    return u
+
+
+def err(arr, u):
+    e0 = np.sqrt(u[1])
+    e1 = np.sqrt(u[3] - (u[1] ** 2))
+    e2 = 9 * (u[1] ** 3) - 6 * (u[1] * u[3]) - (u[2] ** 2) + u[5]
+    e3 = u[7] - 36 * (u[1] ** 4) + 48 * (u[1] * u[3]) + 64 * (u[1] * (u[2] ** 2)) - 12 * (u[1] * u[5]) - 8 * (
+            u[2] * u[4]) - (u[3] ** 2)
+    e = (e0, e1, e2, e3)
+    return e
+
+
+def err_rat(arr, u):
+    e_r0 = (u[3] - (u[1] ** 2)) / (u[0] ** 2) - (2 * u[1] * u[2]) / (u[0] ** 3) + ((u[1] ** 3) / (u[0] ** 4))
+    if np.isnan(e_r0):
+        e_r0 = 0
+    e_r1 = (9 * u[1] ** 2 - (6 * u[3]) / u[1] + (6 * u[2] ** 2 + u[5]) / u[1] ** 2 -
+            (2 * u[4] * u[2]) / u[1] ** 3 + ((u[2] ** 2) * u[3]) / u[1] ** 4)
+    if np.isnan(e_r1):
+        e_r1 = 0
+    e_r2 = (9 * (u[3] - u[1] ** 2) + (40 * (u[2] ** 2) - 6 * u[5]) / u[1] +
+            (u[7] + 6 * (u[3] ** 2) - 8 * u[2] * u[4]) / u[1] ** 2 +
+            (8 * u[3] * (u[2] ** 4) - 2 * u[3] * u[5]) / u[1] ** 3 +
+            (u[3] ** 3) / u[1] ** 4)
+    if np.isnan(e_r2):
+        e_r2 = 0
+    e_r = (e_r0, e_r1, e_r2)
+    return e_r
+
+
+def cbwc(df):
+    pass
