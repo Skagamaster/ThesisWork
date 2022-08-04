@@ -14,8 +14,8 @@ n_coll, n_part, predictions = frf.load_data()
 density = True
 
 # I'm going to plot the best fits, so far, as distributions.
-dists = ["Refmult3", r"$\Sigma EPD$", r"$\Sigma EPD_{out}$",
-         r"$X_{\zeta, LW}$", r"$X_{\zeta, RELU}$"]
+dists = [r"$X_{RM3}$", r"$X_{\Sigma}$", r"$X_{\Sigma_{out}}$",
+         r"$X_{LW}$", r"$X_{ReLU}$"]
 cent_range = (95, 90, 80, 70, 60, 50, 40, 30, 20, 10)
 GMC = []
 gmc = frf.gmc_dist_generator(n_coll, n_part, 2.0, 0.7, 0.5)
@@ -33,29 +33,38 @@ GMC.append(gmc)
 
 bins = 850
 
-fig, ax = plt.subplots(2, 3, figsize=(16, 9), constrained_layout=True)
+fig, ax = plt.subplots(2, 2, figsize=(16, 9), constrained_layout=True)
+big_set = (0, 1, 3, 4)
 for i in range(2):
-    for j in range(3):
-        x = i*3 + j
-        if x >= 5:
-            ax[i, j].set_axis_off()
-            continue
+    for j in range(2):
+        x = big_set[i*2 + j]
         count, bins = np.histogram(predictions[x], bins=bins, range=(-100, bins-100))
         gmc_count, gmc_bins = np.histogram(GMC[x], bins=bins, range=(-100, bins-100))
         gmc_count = gmc_count*(count[300]/gmc_count[300])
         ax[i, j].plot(bins[:-1], count, label=dists[x], color='red', lw=2)
         ax[i, j].plot(bins[:-1], gmc_count, label="GMC", color='b', lw=2, alpha=0.6)
-        """
-        ax[i, j].hist(predictions[x], bins=bins, histtype='step', label=dists[x], color='red',
-                      density=density, lw=2, range=(-100, bins-100))
-        ax[i, j].hist(GMC[x], bins=bins, histtype='step', label="GMC", density=density, alpha=0.6, lw=2,
-                      range=(-100, bins-100))
-        """
         ax[i, j].legend()
         ax[i, j].set_xlabel("X (AU)", fontsize=15)
         ax[i, j].set_ylabel(r"N (normalised)", fontsize=15)
         ax[i, j].set_yscale('log')
 plt.show()
+plt.close()
+
+fig, ax = plt.subplots(1, 2, figsize=(12, 5), constrained_layout=True)
+small_set = (0, -1)
+for i in range(2):
+    x = small_set[i]
+    count, bins = np.histogram(predictions[x], bins=bins, range=(-100, bins - 100))
+    gmc_count, gmc_bins = np.histogram(GMC[x], bins=bins, range=(-100, bins - 100))
+    gmc_count = gmc_count * (count[300] / gmc_count[300])
+    ax[i].plot(bins[:-1], count, label=dists[x], color='red', lw=2)
+    ax[i].plot(bins[:-1], gmc_count, label="GMC", color='b', lw=2, alpha=0.6)
+    ax[i].legend()
+    ax[i].set_xlabel("X (AU)", fontsize=15)
+    ax[i].set_ylabel(r"N (normalised)", fontsize=15)
+    ax[i].set_yscale('log')
+plt.show()
+plt.close()
 
 chi_2 = np.zeros((2, 10, 10, 10))
 n = np.linspace(1.3, 2, 10)

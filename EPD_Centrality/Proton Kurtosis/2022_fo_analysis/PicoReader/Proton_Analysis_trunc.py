@@ -60,7 +60,7 @@ fig.colorbar(im1, ax=ax[1])
 plt.show()
 plt.close()
 
-# Now to do a cumulant analysis for all X byb integer value.
+# Now to do a cumulant analysis for all X by integer value.
 c = []
 e = []
 c_r = []

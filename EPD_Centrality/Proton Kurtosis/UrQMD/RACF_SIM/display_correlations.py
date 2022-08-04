@@ -40,39 +40,122 @@ pro_bins = np.load('pro_bins.npy', allow_pickle=True)
 
 ylabels = [r'$X_{RM3}$', r'$X_{RM1}$', 'b (fm)', r'$X_{LW}$',
            r'$X_{ReLU}$', r'$X_{swish}$', r'$X_{CNN}$']
-ylabels = [r'$X_{RM3}$', r'$X_{RM1}$', 'b (fm)', r'$X_{LW}$',
-           r'$X_{ReLU}$', r'$X_{swish}$', r'$X_{CNN}$']
 xlabels = ['protons', 'antiprotons', 'net protons']
 
 # First we find the cumulants and their errors.
 C = [[], [], [], []]
 C_labels = [r'$C_1$', r'$C_2$', r'$C_3$', r'$C_4$']
+C_labels_rat = [r'$C_1$', r'$\frac{C_2}{C_1}$', r'$\frac{C_3}{C_2}$', r'$\frac{C_4}{C_2}$']
 E = [[], [], [], []]
 E_rat = [[], [], [], []]
+p_bins = [[], [], [], []]
 for k in range(4):
     for i in range(3):
         C[k].append([])
         E[k].append([])
+        p_bins[k].append([])
         E_rat[k].append([])
         for j in range(len(ylabels)):
-            if k == 0:  # The mean does not require the mean, so it's a different function.
-                C[k][i].append(rdr.u_1(pro_counts[i][j], pro_bins[i][j]))
-                C[k][i][j][C[k][i][j] == 0] = 1e-6
-            elif k == 3:  # C4 is not simply the 4th moment, unlike C1-3.
-                C[k][i].append(np.subtract(rdr.u_n(pro_counts[i][j], pro_bins[i][j], C[0][i][j], 4),
-                                           3 * np.power(C[1][i][j], 2)))
-                C[k][i][j][C[k][i][j] == 0] = 1e-6
+            # Moments for cumulants and errors.
+            u = []
+            x = []
+            n = []
+            for r in range(1, 9):
+                u_temp = rdr.u_n(pro_counts[i][j], pro_bins[i][j], r)
+                u.append(u_temp[0])
+                x.append(u_temp[1])
+                n.append(u_temp[2])
+                index = np.where(u[r-1] != 0)
+                if r == 2:
+                    index = np.where(u[r-1] != 0)
+                    u[r-1] = u[r-1][index]
+                    x[r-1] = x[r-1][index]
+                    n[r-1] = n[r-1][index]
+            # This is to make sure we don't have different sized arrays
+            # (i.e. that all x values are the same set for a given X,
+            # and that no n=0 are allowed).
+            x_full = x[0]
+            for r in range(len(x)):
+                index = np.where(n[r] != 0)
+                n[r] = n[r][index]
+                x[r] = x[r][index]
+                u[r] = u[r][index]
+                x_full = np.intersect1d(x_full, x[r])
+            for r in range(len(x)):
+                index = []
+                for g in range(len(x[r])):
+                    if x[r][g] in x_full:
+                        index.append(g)
+                x[r] = x[r][index]
+                u[r] = u[r][index]
+                n[r] = n[r][index]
+            u2 = (-u[1] ** 2 + u[3])
+            u3 = 9 * (u[1] ** 3) - 6 * u[1] * u[3] - u[2] ** 2 + u[5]
+            u4 = -36 * (u[1] ** 4) + 48 * (u[1] ** 2) * u[3] + 64 * (u[4] ** 2) * u[1] - 12 * u[1] * u[5] \
+                 - 8 * u[2] * u[4] - u[3] ** 2 + u[7]
+            n_mean = u[0]
+            ur2 = np.divide(np.subtract(u[3], np.power(u[1], 2)), np.power(n_mean, 2)) - \
+                  np.divide(2 * np.multiply(u[1], u[2]), np.power(n_mean, 3)) + \
+                  np.divide(np.power(u[1], 3), np.power(n_mean, 4))
+            ur3 = 9 * np.power(u[1], 2) - \
+                  np.divide(6 * u[3], u[1]) + \
+                  np.divide(np.add(6 * u[2], u[5]), np.power(u[1], 2)) - \
+                  np.divide(np.multiply(2 * u[2], u[4]), np.power(u[1], 3)) + \
+                  np.divide(np.multiply(np.power(u[2], 2), u[3]), np.power(u[1], 4))
+            ur4 = -9 * np.power(u[1], 2) + 9 * u[3] + \
+                  np.divide(np.subtract(40 * np.power(u[2], 2), 6 * u[5]), u[1]) + \
+                  np.divide(np.subtract(np.add(u[7], 6 * np.power(u[3], 2)),
+                                        8 * np.multiply(u[2], u[4])),
+                            np.power(u[1], 2)) + \
+                  np.divide(np.subtract(8 * np.multiply(np.power(u[2], 4), u[3]),
+                                        2 * np.multiply(u[3], u[5])),
+                            np.power(u[1], 3)) + \
+                  np.divide(np.power(u[3], 3), np.power(u[1], 4))
+            index = np.where((u[1] > 0) & (u2 > 0) & (u3 > 0) & (u4 > 0) &
+                             (ur2 > 0) & (ur3 > 0) & (ur4 > 0))
+            u2 = u2[index]
+            u3 = u3[index]
+            u4 = u4[index]
+            ur2 = ur2[index]
+            ur3 = ur3[index]
+            ur4 = ur4[index]
+            for r in range(len(x)):
+                x[r] = x[r][index]
+                u[r] = u[r][index]
+                n[r] = n[r][index]
+            u_er = [u[1], u2, u3, u4]
+            u_er_rat = [u[1], ur2, ur3, ur4]
+            # Now to generate the cumulants, their ratios, and errors.
+            if k == 3:  # C4 is not simply the 4th moment, unlike C1-3.
+                p_bins[k][i].append(x[k])
+                C[k][i].append(np.subtract(u[3], 3 * np.power(u[1], 2)))
+                E[k][i].append(np.sqrt(np.divide(u_er[k], n[k])))
+                E_rat[k][i].append(np.sqrt(np.divide(u_er_rat[k], n[k])))
             else:
-                C[k][i].append(rdr.u_n(pro_counts[i][j], pro_bins[i][j], C[0][i][j], k + 1))
-                C[k][i][j][C[k][i][j] == 0] = 1e-6
-            E_rat[k][i].append(rdr.err_rat(pro_counts[i][j], pro_bins[i][j], C[0][i][j], power=(k + 1)))
-            E[k][i].append(rdr.err(pro_counts[i][j], pro_bins[i][j], C[0][i][j], power=(k + 1)))
+                C[k][i].append(u[k])
+                E[k][i].append(np.sqrt(np.divide(u_er[k], n[k])))
+                E_rat[k][i].append(np.sqrt(np.divide(u_er_rat[k], n[k])))
+                p_bins[k][i].append(x[k])
+            index = C[k][i][j] != 0
+            C[k][i][j] = C[k][i][j][index]
+            p_bins[k][i][j] = p_bins[k][i][j][index]
+            E[k][i][j] = E[k][i][j][index]
+            E_rat[k][i][j] = E_rat[k][i][j][index]
 C = np.asarray(C, dtype='object')
 E = np.asarray(E, dtype='object')
 E_rat = np.asarray(E_rat, dtype='object')
+C_rat = np.copy(C)
+for j in range(3):
+    print("j=", j)
+    for k in range(len(ylabels)):
+        print(k)
+        C_rat[2][j][k] = np.divide(C_rat[2][j][k], C_rat[1][j][k])
+        C_rat[3][j][k] = np.divide(C_rat[3][j][k], C_rat[1][j][k])
+        C_rat[1][j][k] = np.divide(C_rat[1][j][k], C_rat[0][j][k])
 
 # Now to plot the found cumulants with error.
-# rdr.cum_plot_int_err(ylabels, target, pro_bins, C, E, C_labels, xlabels, gev=gev)
+rdr.cum_plot_int_err(ylabels, target, p_bins, C, E, C_labels, xlabels, gev=gev)
+rdr.cum_plot_int_err(ylabels, target, p_bins, C_rat, E_rat, C_labels_rat, xlabels, gev=gev)
 
 # 2D plot of the X values vs (anti/net)proton
 xlim = ((0, 40), (0, 20), (-5, 40))
@@ -84,7 +167,7 @@ for i in range(3):
         ax[i, j].set_xlabel(xlabels[i])
         ax[i, j].set_xlim(xlim[i])
         fig.colorbar(im, ax=ax[i, j])
-# plt.show()
+plt.show()
 plt.close()
 
 # Now for ratios and CBWC, but without error for now.
@@ -115,8 +198,8 @@ C[1] = np.divide(C[1], C[0])
 
 C_labels = [r'$\mu$', r'$\frac{\sigma^2}{\mu}$',
             r'$S\sigma$', r'$\kappa\sigma^2$']
-# rdr.cum_plot_int_err(ylabels, target, pro_bins, C, E_rat, C_labels, xlabels, gev=gev)
-# rdr.cum_plot_int_err_test(ylabels, target, pro_bins, C, C_up_test, C_down_test, C_labels, xlabels, gev=gev)
+rdr.cum_plot_int_err(ylabels, target, pro_bins, C, E_rat, C_labels, xlabels, gev=gev)
+rdr.cum_plot_int_err_test(ylabels, target, pro_bins, C, C_up_test, C_down_test, C_labels, xlabels, gev=gev)
 
 """
 Now to get the CBWC results.
@@ -351,7 +434,7 @@ for k in range(4):
     plt.close()
 
 # This is the end, final plot. Are there ACEs shown?
-plt_set = (0, 1, 2, 3, 6)
+plt_set = (0, 1, 2, 3, 4)
 plt.figure(figsize=(16, 9))
 plt.title(r'$\kappa\sigma^2$ for $\sqrt{s_{NN}}$ = ' + gev + ' GeV (UrQMD)', fontsize=30)
 for j in plt_set:
@@ -440,12 +523,20 @@ for j in plt_set:
             plt.scatter(centralities, C_cbwc[1][-1][j][::-1],
                         marker=markers[j], s=size, alpha=alpha, c=color[j],
                         label=ylabels[j])
+            print("Values for " + ylabels[j] + ":")
+            print(centralities)
+            print(fill_up[1][-1][j][::-1])
+            print(fill_down[1][-1][j][::-1])
         else:
             plt.fill_between(centralities, fill_up[1][-1][j], fill_down[1][-1][j], alpha=0.2,
                              color=color[j])
             plt.scatter(centralities, C_cbwc[1][-1][j],
                         marker=markers[j], s=size, alpha=alpha, c=color[j],
                         label=ylabels[j])
+            print("Values for " + ylabels[j] + ":")
+            print(centralities)
+            print(fill_up[1][-1][j])
+            print(fill_down[1][-1][j])
 plt.xticks(centralities, labels=centralities, rotation=45)
 plt.xlabel("Centrality", fontsize=20)
 plt.ylabel(r'$\frac{\sigma^2}{\mu}$', fontsize=20)

@@ -15,6 +15,7 @@ from keras.callbacks import EarlyStopping
 from sklearn.cluster import KMeans, MiniBatchKMeans
 from sklearn import mixture
 from scipy.stats import moment
+from matplotlib.colors import LogNorm
 import time
 
 
@@ -638,7 +639,7 @@ class UrQMD:
             print("KeyError at: " + data)  # Identifies the misbehaving file.
 
 
-def u_n(arr1, arr2, u1, power=2):
+def u_n_archive(arr1, arr2, u1, power=2):
     """
     This code will find the moment (n>= 2) for a 2D histogram. The return is the
     array of moments for the given reference multiplicity.
@@ -649,7 +650,7 @@ def u_n(arr1, arr2, u1, power=2):
             power: The power of the moment you're looking for.
     """
     n = np.sum(arr1, axis=1)
-    n[n == 0] = 1e-10  # To avoid infinities with blank results.
+    n[n == 0] = 1e-10  # This should be an index of omission, not a "fudge factor" change!
     dN = np.repeat(np.expand_dims(arr2[1][:-1], axis=0), len(arr1), axis=0)
     for i in range(len(dN)):
         dN[i] -= u1[i]
@@ -657,6 +658,24 @@ def u_n(arr1, arr2, u1, power=2):
     with np.errstate(divide='ignore', invalid='ignore'):
         un = np.where(n > 0, np.divide(np.sum(dN, axis=1), n), 0)
     return np.asarray(un)
+
+
+def u_1_archive(arr1, arr2):
+    """
+    This is for finding the mean (u_1) of a 2D histogram. The return is the
+    array of means for the given reference multiplicity.
+        Args:
+            arr1: The MxN matrix of the correlation amounts from the 2D histogram.
+            arr2: The XxY axis from the 2D hostogram.
+    """
+    n = np.sum(arr1, axis=1)
+    n[n == 0] = 1e-6  # This should be an index of omission, not a "fudge factor" change!
+    n = np.asarray(n).astype(np.float)
+    totals = np.sum(arr1 * arr2[1][:-1], axis=1)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        totals = np.asarray(totals).astype(np.float)
+        u1 = np.where(n >= 1e-5, totals/n, 0)
+    return np.asarray(u1)
 
 
 def u_1(arr1, arr2):
@@ -668,16 +687,157 @@ def u_1(arr1, arr2):
             arr2: The XxY axis from the 2D hostogram.
     """
     n = np.sum(arr1, axis=1)
-    n[n == 0] = 1e-6
-    n = np.asarray(n).astype(np.float)
-    totals = np.sum(arr1 * arr2[1][:-1], axis=1)
-    with np.errstate(divide='ignore', invalid='ignore'):
-        totals = np.asarray(totals).astype(np.float)
-        u1 = np.where(n >= 1e-5, totals/n, 0)
-    return np.asarray(u1)
+    index = n != 0
+    n = n[index]
+    x_vals = arr2[0][:-1][index]
+    totals = np.sum(arr1 * arr2[1][:-1], axis=1)[index]
+    totals = np.asarray(totals).astype(np.float)
+    u1 = totals/n
+    return np.asarray(u1), x_vals
 
 
-def err(arr1, arr2, u1, power=1):
+def u_n(arr1, arr2, power=2):
+    """
+    This code will find the central moment for a 2D histogram. The return is the
+    array of moments for the given reference multiplicity.
+        Args:
+            arr1: The MxN matrix of the correlation amounts from the 2D histogram.
+            arr2: The XxY axis from the 2D hostogram.
+            power: The power of the moment you're looking for.
+    """
+    n = np.sum(arr1, axis=1)
+    index = n != 0
+    x_vals = arr2[0][:-1][index]
+    n = n[index]
+    totals = np.sum(arr1 * arr2[1][:-1], axis=1)[index]
+    totals = np.asarray(totals).astype(np.float)
+    u1 = totals/n
+    if power == 1:
+        un = u1
+    else:
+        dN = np.repeat(np.expand_dims(arr2[1][:-1], axis=0), len(arr1), axis=0)[index]
+        for i in range(len(dN)):
+            dN[i] -= u1[i]
+        dN = arr1[index] * np.power(dN, power)
+        un = np.divide(np.sum(dN, axis=1), n)
+    return np.asarray(un), x_vals, n
+
+
+def err(u, n, power=1):
+    """
+    This is for finding the error in the moments of a 2D histogram. The return is the
+    array of moment errors for the given reference multiplicity and power.
+    Error is found using Delta Theorem.
+        Args:
+            u: The array of central moments.
+            n: The array of lengths.
+            power: Power of the error being requested.
+    """
+    u_ = u[0]
+    if power == 2:
+        u_ = (-u[1] ** 2 + u[3])
+    if power == 3:
+        u_ = 9 * (u[1] ** 3) - 6 * u[1] * u[3] - u[2] ** 2 + u[5]
+    if power == 4:
+        u_ = -36 * (u[1] ** 4) + 48 * (u[1] ** 2) * u[3] + 64 * (u[4] ** 2) * u[1] - 12 * u[1] * u[5] \
+             - 8 * u[2] * u[4] - u[3] ** 2 + u[7]
+    e = np.sqrt(np.divide(u_, n[power-1]))
+    return e
+
+
+def err_rat(u, n, power=1):
+    """
+    This is for finding the error in the ratio values using delta theorem.
+        Args:
+            u: The MxN matrix of the correlation amounts from the 2D histogram.
+            n: The XxY axis from the 2D hostogram.
+            power: Power of the error being requested.
+    """
+    u_ = u[0]
+    if power == 2:
+        n_mean = u[0]
+        u_ = np.divide(np.subtract(u[3], np.power(u[1], 2)), np.power(n_mean, 2)) - \
+             np.divide(2*np.multiply(u[1], u[2]), np.power(n_mean, 3)) + \
+             np.divide(np.power(u[1], 3), np.power(n_mean, 4))
+    if power == 3:
+        u_ = 9*np.power(u[1], 2) - \
+             np.divide(6*u[3], u[1]) + \
+             np.divide(np.add(6*u[2], u[5]), np.power(u[1], 2)) - \
+             np.divide(np.multiply(2*u[2], u[4]), np.power(u[1], 3)) + \
+             np.divide(np.multiply(np.power(u[2], 2), u[3]), np.power(u[1], 4))
+    if power == 4:
+        u_ = -9*np.power(u[1], 2) + 9*u[3] + \
+             np.divide(np.subtract(40*np.power(u[2], 2), 6*u[5]), u[1]) + \
+             np.divide(np.subtract(np.add(u[7], 6*np.power(u[3], 2)),
+                                                    8*np.multiply(u[2], u[4])),
+                                        np.power(u[1], 2)) + \
+             np.divide(np.subtract(8*np.multiply(np.power(u[2], 4), u[3]),
+                                                    2*np.multiply(u[3], u[5])),
+                                        np.power(u[1], 3)) + \
+             np.divide(np.power(u[3], 3), np.power(u[1], 4))
+    e = np.sqrt(np.divide(u_, n[power-1]))
+    return e
+
+
+def cum_plot_int_err(ylabels, target, pro_bins, C, E, C_labels, xlabels, gev='200'):
+    color = ['orangered', 'orange', 'sienna', 'black', 'blue', 'purple', 'darkviolet', 'royalblue']
+    for k in range(4):
+        fig, ax = plt.subplots(3, len(ylabels), figsize=(16, 9), constrained_layout=True)
+        plt.suptitle(C_labels[k] + r' for $\sqrt{s_{NN}}$= ' + gev + ' GeV (UrQMD)',
+                     fontsize=30)
+        for i in range(3):
+            for j in range(len(ylabels)):
+                if target == 'b':
+                    if j > 1:
+                        ax[i, j].errorbar(pro_bins[i][j][0],
+                                          np.flip(C[k][i][j]),
+                                          yerr=np.flip(E[k][i][j]),
+                                          marker='.', ms=3, lw=0,
+                                          elinewidth=1, capsize=2)
+                        ax[i, j].set_xticks(np.linspace(0, pro_bins[i][j][0][-1], 5))
+                        ax[i, j].set_xticklabels(np.flip(np.round(np.linspace(0,
+                                                                              pro_bins[i][j][0][-1],
+                                                                              5),
+                                                                  1)).astype('str'),
+                                                 rotation=45)
+                    else:
+                        ax[i, j].errorbar(pro_bins[i][j][0], C[k][i][j], yerr=E[k][i][j],
+                                          marker='.', ms=3, lw=0, elinewidth=1, capsize=2)
+                        ax[i, j].set_xticks(np.linspace(0, pro_bins[i][j][0][-1], 5))
+                        ax[i, j].set_xticklabels(np.linspace(0,
+                                                             pro_bins[i][j][0][-1],
+                                                             5).astype('int'),
+                                                 rotation=45)
+                else:
+                    if j == 2:
+                        ax[i, j].errorbar(pro_bins[k][i][j],
+                                          np.flip(C[k][i][j]),
+                                          yerr=np.flip(E[k][i][j]),
+                                          marker='.', ms=3, lw=0,
+                                          elinewidth=1, capsize=2,
+                                          color=color[j])
+                        ax[i, j].set_xticks(np.linspace(0, pro_bins[k][i][j][-1], 5))
+                        ax[i, j].set_xticklabels(np.flip(np.round(np.linspace(0,
+                                                                              pro_bins[k][i][j][-1],
+                                                                              5),
+                                                                  1)).astype('str'),
+                                                 rotation=45)
+                    else:
+                        ax[i, j].errorbar(pro_bins[k][i][j], C[k][i][j], yerr=E[k][i][j],
+                                          marker='.', ms=3, lw=0, elinewidth=1, capsize=2,
+                                          color=color[j])
+                        ax[i, j].set_xticks(np.linspace(0, pro_bins[k][i][j][-1], 5))
+                        ax[i, j].set_xticklabels(np.linspace(0,
+                                                             pro_bins[k][i][j][-1],
+                                                             5).astype('int'),
+                                                 rotation=45)
+                ax[i, j].set_xlabel(ylabels[j])
+                ax[i, j].set_ylabel(r'<' + xlabels[i] + r'>')
+        plt.show()
+        plt.close()
+
+
+def err_archive(arr1, arr2, u1, power=1):
     """
     This is for finding the error in the moments of a 2D histogram. The return is the
     array of moment errors for the given reference multiplicity and power.
@@ -805,7 +965,7 @@ def err_rat_(arr1, arr2, u1, power=3):
     return e
 
 
-def err_rat(arr1, arr2, u1, power=3):
+def err_rat_archive(arr1, arr2, u1, power=3):
     """
     This is for finding the error in the ratio values using delta theorem.
         Args:
@@ -1032,7 +1192,7 @@ def cum_plot_int(ylabels, target, pro_bins, C, C_labels, xlabels, gev='200'):
         plt.close()
 
 
-def cum_plot_int_err(ylabels, target, pro_bins, C, E, C_labels, xlabels, gev='200'):
+def cum_plot_int_err_archive(ylabels, target, pro_bins, C, E, C_labels, xlabels, gev='200'):
     for k in range(4):
         fig, ax = plt.subplots(3, len(ylabels), figsize=(16, 9), constrained_layout=True)
         plt.suptitle(C_labels[k] + r' for $\sqrt{s_{NN}}$= ' + gev + ' GeV (UrQMD)',

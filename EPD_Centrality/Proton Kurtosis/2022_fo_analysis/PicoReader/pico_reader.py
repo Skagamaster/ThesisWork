@@ -557,6 +557,7 @@ def moment_arr(arr):
 
 
 def err(arr, u):
+    n = np.sqrt(len(arr))
     e0 = np.sqrt(u[1])
     e1 = np.sqrt(u[3] - (u[1] ** 2))
     e2 = 9 * (u[1] ** 3) - 6 * (u[1] * u[3]) - (u[2] ** 2) + u[5]

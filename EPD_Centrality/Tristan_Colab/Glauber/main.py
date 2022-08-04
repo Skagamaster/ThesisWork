@@ -6,13 +6,13 @@ import numpy as np
 
 # DisplayData()
 
-N = 1000000
+N = 10
 Particle1 = '197Au'
 Particle2 = '197Au'
 A1 = 197
 A2 = 197
 Energy = 14.6  # GeV
-bRange = 1.9
+bRange = 0.5
 model1 = '2pF'
 model2 = '2pF'
 Range = 2

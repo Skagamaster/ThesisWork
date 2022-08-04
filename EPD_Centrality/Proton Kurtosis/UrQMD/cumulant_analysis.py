@@ -17,7 +17,7 @@ import os
 import pandas as pd
 import uproot as up
 
-energy = 7  # 200 GeV, 27.7 (27) GeV, and 19.6 (19) GeV are the current options.
+energy = 15  # 200 GeV, 27.7 (27) GeV, and 19.6 (19) GeV are the current options.
 gev = 7.7
 if energy == 200:
     gev = 200
@@ -35,7 +35,7 @@ analysis were done at z=0, and we restricted p_T tot he interval 0.4-2.0 (as is 
 net proton cumulant analyses in STAR).
 """
 os.chdir(r"C:\Users\dansk\Documents\Thesis\2021_DNP_Work\ML_fits\UrQMD")
-if energy > 15:
+if energy >= 15:
     df = pd.read_pickle(r"C:\Users\dansk\Documents\Thesis\2021_DNP_Work\urqmd_{}.pkl".format(energy))
     ring_sum = np.zeros(len(df))
     for i in range(16):
@@ -115,7 +115,7 @@ plt.yscale('log')
 plt.title("Normalised Distributions for {} GeV".format(gev), fontsize=30)
 plt.xlabel("Centrality (C, AU)", fontsize=20)
 plt.ylabel(r"$\frac{dN}{dC}$", fontsize=20)
-# plt.show()
+plt.show()
 plt.close()
 
 """
