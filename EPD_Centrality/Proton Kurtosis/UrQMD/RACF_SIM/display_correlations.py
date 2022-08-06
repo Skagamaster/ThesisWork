@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import os
 import reader as rdr
+import copy
 
 # Are you fitting to b, refmult1, or refmult3?
 target = 'refmult3'
@@ -41,6 +42,8 @@ pro_bins = np.load('pro_bins.npy', allow_pickle=True)
 ylabels = [r'$X_{RM3}$', r'$X_{RM1}$', 'b (fm)', r'$X_{LW}$',
            r'$X_{ReLU}$', r'$X_{swish}$', r'$X_{CNN}$']
 xlabels = ['protons', 'antiprotons', 'net protons']
+EPD_set = [3, 4, 5, 6]
+Final_set = [0, 1, 2, 3, 4]
 
 # First we find the cumulants and their errors.
 C = [[], [], [], []]
@@ -48,13 +51,19 @@ C_labels = [r'$C_1$', r'$C_2$', r'$C_3$', r'$C_4$']
 C_labels_rat = [r'$C_1$', r'$\frac{C_2}{C_1}$', r'$\frac{C_3}{C_2}$', r'$\frac{C_4}{C_2}$']
 E = [[], [], [], []]
 E_rat = [[], [], [], []]
+E_rat_min = [[], [], [], []]  # This is for min/max errors on the ratios.
+E_rat_max = [[], [], [], []]  # This is for min/max errors on the ratios.
 p_bins = [[], [], [], []]
+n_bins = [[], [], [], []]
 for k in range(4):
     for i in range(3):
         C[k].append([])
         E[k].append([])
         p_bins[k].append([])
         E_rat[k].append([])
+        E_rat_min[k].append([])
+        E_rat_max[k].append([])
+        n_bins[k].append([])
         for j in range(len(ylabels)):
             # Moments for cumulants and errors.
             u = []
@@ -65,12 +74,12 @@ for k in range(4):
                 u.append(u_temp[0])
                 x.append(u_temp[1])
                 n.append(u_temp[2])
-                index = np.where(u[r-1] != 0)
+                index = np.where(u[r - 1] != 0)
                 if r == 2:
-                    index = np.where(u[r-1] != 0)
-                    u[r-1] = u[r-1][index]
-                    x[r-1] = x[r-1][index]
-                    n[r-1] = n[r-1][index]
+                    index = np.where(u[r - 1] != 0)
+                    u[r - 1] = u[r - 1][index]
+                    x[r - 1] = x[r - 1][index]
+                    n[r - 1] = n[r - 1][index]
             # This is to make sure we don't have different sized arrays
             # (i.e. that all x values are the same set for a given X,
             # and that no n=0 are allowed).
@@ -128,6 +137,7 @@ for k in range(4):
             # Now to generate the cumulants, their ratios, and errors.
             if k == 3:  # C4 is not simply the 4th moment, unlike C1-3.
                 p_bins[k][i].append(x[k])
+                n_bins[k][i].append(n[k])
                 C[k][i].append(np.subtract(u[3], 3 * np.power(u[1], 2)))
                 E[k][i].append(np.sqrt(np.divide(u_er[k], n[k])))
                 E_rat[k][i].append(np.sqrt(np.divide(u_er_rat[k], n[k])))
@@ -136,28 +146,106 @@ for k in range(4):
                 E[k][i].append(np.sqrt(np.divide(u_er[k], n[k])))
                 E_rat[k][i].append(np.sqrt(np.divide(u_er_rat[k], n[k])))
                 p_bins[k][i].append(x[k])
-            index = C[k][i][j] != 0
+                n_bins[k][i].append(n[k])
+                index = C[k][i][j] != 0
+                C[k][i][j] = C[k][i][j][index]
+                p_bins[k][i][j] = p_bins[k][i][j][index]
+                n_bins[k][i][j] = n_bins[k][i][j][index]
+                E[k][i][j] = E[k][i][j][index]
+                E_rat[k][i][j] = E_rat[k][i][j][index]
+
+# This bit of code makes sure all cumulants ahve the same x coordinates (e.g. not
+# a seperate length for the antiproton and net proton cumulant arrays, or a seperate
+# length for C4 vs C2).
+len_check = copy.deepcopy(p_bins)
+for k in range(4):
+    for j in range(len(ylabels)):
+        new_p = p_bins[k][0][j]
+        for i in range(3):
+            new_p = np.intersect1d(new_p, p_bins[k][i][j])
+        for i in range(3):
+            index = []
+            for r in range(len(p_bins[k][i][j])):
+                if p_bins[k][i][j][r] in new_p:
+                    index.append(r)
             C[k][i][j] = C[k][i][j][index]
             p_bins[k][i][j] = p_bins[k][i][j][index]
+            n_bins[k][i][j] = n_bins[k][i][j][index]
             E[k][i][j] = E[k][i][j][index]
             E_rat[k][i][j] = E_rat[k][i][j][index]
+len_check = copy.deepcopy(p_bins)
+for i in range(3):
+    for j in range(len(ylabels)):
+        new_p = p_bins[0][i][j]
+        for k in range(4):
+            new_p = np.intersect1d(new_p, p_bins[k][i][j])
+        for k in range(4):
+            index = []
+            for r in range(len(p_bins[k][i][j])):
+                if p_bins[k][i][j][r] in new_p:
+                    index.append(r)
+            C[k][i][j] = C[k][i][j][index]
+            p_bins[k][i][j] = p_bins[k][i][j][index]
+            n_bins[k][i][j] = n_bins[k][i][j][index]
+            E[k][i][j] = E[k][i][j][index]
+            E_rat[k][i][j] = E_rat[k][i][j][index]
+
+# Now to make an array for errors on the ratio using the min/max approach.
+for j in range(3):
+    for k in range(len(ylabels)):
+        E_rat_min[0][j].append(np.subtract(C[0][j][k], E[0][j][k]))
+        E_rat_max[0][j].append(np.add(C[0][j][k], E[0][j][k]))
+        E_rat_max[1][j].append(np.divide(np.add(C[1][j][k], E[1][j][k]), np.subtract(C[0][j][k], E[0][j][k])))
+        E_rat_min[1][j].append(np.divide(np.subtract(C[1][j][k], E[1][j][k]), np.add(C[0][j][k], E[0][j][k])))
+        E_rat_max[2][j].append(np.divide(np.add(C[2][j][k], E[2][j][k]), np.subtract(C[1][j][k], E[1][j][k])))
+        E_rat_min[2][j].append(np.divide(np.subtract(C[2][j][k], E[2][j][k]), np.add(C[1][j][k], E[1][j][k])))
+        E_rat_max[3][j].append(np.divide(np.add(C[3][j][k], E[3][j][k]), np.subtract(C[1][j][k], E[1][j][k])))
+        E_rat_min[3][j].append(np.divide(np.subtract(C[3][j][k], E[3][j][k]), np.add(C[1][j][k], E[1][j][k])))
 C = np.asarray(C, dtype='object')
 E = np.asarray(E, dtype='object')
 E_rat = np.asarray(E_rat, dtype='object')
+p_bins = np.asarray(p_bins, dtype='object')
+n_bins = np.asarray(n_bins, dtype='object')
 C_rat = np.copy(C)
 for j in range(3):
-    print("j=", j)
     for k in range(len(ylabels)):
-        print(k)
         C_rat[2][j][k] = np.divide(C_rat[2][j][k], C_rat[1][j][k])
         C_rat[3][j][k] = np.divide(C_rat[3][j][k], C_rat[1][j][k])
         C_rat[1][j][k] = np.divide(C_rat[1][j][k], C_rat[0][j][k])
 
+# Let's try a plot with the errors plotted alongside each other.
+color = ['orangered', 'orange', 'sienna', 'black', 'blue', 'purple', 'darkviolet', 'royalblue']
+markers = ['o', '8', r'$b$', 's', 'P', '*', 'X', 'D']
+for i in range(4):
+    fig, ax = plt.subplots(3, len(ylabels), figsize=(16, 9), constrained_layout=True)
+    for j in range(3):
+        for k in range(len(ylabels)):
+            r = j * len(ylabels)
+            if k == 2:
+                ax[j][k].fill_between(p_bins[i][j][k], E_rat_max[i][j][k][::-1], E_rat_min[i][j][k][::-1],
+                                      color=color[k])
+                # ax[j][k].fill_between(p_bins[i][j][k], C_rat[i][j][k][::-1]+E_rat[i][j][k][::-1],
+                # C_rat[i][j][k][::-1]-E_rat[i][j][k][::-1],
+                #                      color='k', alpha=0.7)
+                ax[j][k].plot(p_bins[i][j][k], C_rat[i][j][k][::-1], color='k', marker=markers[k], ms=1, lw=0)
+            else:
+                ax[j][k].fill_between(p_bins[i][j][k], E_rat_max[i][j][k], E_rat_min[i][j][k],
+                                      color=color[k])
+                # ax[j][k].fill_between(p_bins[i][j][k], C_rat[i][j][k]+E_rat[i][j][k],
+                # C_rat[i][j][k]-E_rat[i][j][k],
+                #                      color='k', alpha=0.7)
+                ax[j][k].plot(p_bins[i][j][k], C_rat[i][j][k], color='k', marker=markers[k], ms=1, lw=0)
+            ax[j][k].set_xlabel(ylabels[k], fontsize=15)
+    fig.suptitle(C_labels_rat[i], fontsize=20)
+    # plt.show()
+    plt.close()
+
 # Now to plot the found cumulants with error.
-rdr.cum_plot_int_err(ylabels, target, p_bins, C, E, C_labels, xlabels, gev=gev)
-rdr.cum_plot_int_err(ylabels, target, p_bins, C_rat, E_rat, C_labels_rat, xlabels, gev=gev)
+# rdr.cum_plot_int_err(ylabels, target, p_bins, C, E, C_labels, xlabels, gev=gev)
+# rdr.cum_plot_int_err(ylabels, target, p_bins, C_rat, E_rat, C_labels_rat, xlabels, gev=gev)
 
 # 2D plot of the X values vs (anti/net)proton
+'''
 xlim = ((0, 40), (0, 20), (-5, 40))
 fig, ax = plt.subplots(3, len(ylabels), figsize=(16, 9), constrained_layout=True)
 for i in range(3):
@@ -169,9 +257,10 @@ for i in range(3):
         fig.colorbar(im, ax=ax[i, j])
 plt.show()
 plt.close()
-
+'''
 # Now for ratios and CBWC, but without error for now.
-
+'''Turned off for now.'''
+'''
 C_up_test = C + E
 C_down_test = C - E
 
@@ -195,11 +284,11 @@ C_copy = np.copy(C)
 C[2] = np.divide(C[2], C[1])
 C[3] = np.divide(C[3], C[1])
 C[1] = np.divide(C[1], C[0])
-
+'''
 C_labels = [r'$\mu$', r'$\frac{\sigma^2}{\mu}$',
             r'$S\sigma$', r'$\kappa\sigma^2$']
-rdr.cum_plot_int_err(ylabels, target, pro_bins, C, E_rat, C_labels, xlabels, gev=gev)
-rdr.cum_plot_int_err_test(ylabels, target, pro_bins, C, C_up_test, C_down_test, C_labels, xlabels, gev=gev)
+# rdr.cum_plot_int_err(ylabels, target, p_bins, C, E_rat, C_labels, xlabels, gev=gev)
+# rdr.cum_plot_int_err_test(ylabels, target, p_bins, C, C_up_test, C_down_test, C_labels, xlabels, gev=gev)
 
 """
 Now to get the CBWC results.
@@ -216,12 +305,10 @@ centralities = ['95-100%', '90-95%', '85-90%', '80-85%', '75-80%', '70-75%',
                 '35-40%', '30-35%', '25-30%', '20-25%', '15-20%', '10-15%',
                 '5-10%', '2-5%', '1-2%', '0-1%']
 centralities = ['90-100%', '80-90%', '70-80%', '60-70%', '50-60%', '40-50%',
-                '30-40%', '20-30%', '10-20%', '5-10%', '3-5%', '1-3%', '0-1%']
+                '30-40%', '20-30%', '10-20%', '5-10%', '0-5%']
 
 cent_bins = np.hstack((np.linspace(10, 90, 9), 95))
 cent_bins_reverse = np.hstack((5, np.linspace(10, 90, 9)))
-centralities = ["90-100%", "80-90%", "70-80%", "60-70%", "50-60%", "40-50%", "30-40%",
-                "20-30%", "10-20%", "5-10%", "0-5%"]
 
 for i in range(len(ylabels)):
     if target == 'b':
@@ -236,7 +323,6 @@ for i in range(len(ylabels)):
                                              reverse=True, cent_bins_reverse=cent_bins_reverse))
         else:
             centrality.append(rdr.centrality(pro_counts_c[0][i], pro_bins_c[0][i], cent_bins=cent_bins))
-print(centrality)
 
 # Centrality taking away the RefMult3 == 0 events as they have some weird pileup.
 centrality = [[6., 14., 28., 50., 84., 131., 197., 285., 408., 492.],
@@ -246,7 +332,151 @@ centrality = [[6., 14., 28., 50., 84., 131., 197., 285., 408., 492.],
               [6.503, 13.531, 27.266, 49.652, 83.318, 131.64, 196.276, 283.764, 404.833, 485.149],
               [6.076, 13.573, 27.286, 49.105, 83.39, 131.38, 195.412, 283.929, 403.789, 484.684],
               [4.991, 12.16, 25.672, 46.537, 79.563, 126.518, 192.391, 281.273, 401.452, 481.841]]
-
+# CBWC arrays.
+C_cbwc = np.zeros((4, 3, len(ylabels), len(centrality[0]) + 1))
+E_cbwc = np.zeros((4, 3, len(ylabels), len(centrality[0]) + 1))
+C_rat_cbwc = np.zeros((4, 3, len(ylabels), len(centrality[0]) + 1))
+E_rat_min_cbwc = np.zeros((4, 3, len(ylabels), len(centrality[0]) + 1))
+E_rat_max_cbwc = np.zeros((4, 3, len(ylabels), len(centrality[0]) + 1))
+for k in range(4):
+    for i in range(3):
+        for j in range(len(ylabels)):
+            for r in range(len(centrality[0]) + 1):
+                if r == 0:
+                    index = p_bins[k][i][j] <= centrality[j][r]
+                    C_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index], C[k][i][j][index])),
+                                                   np.sum(n_bins[k][i][j][index]))
+                    E_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index], E[k][i][j][index])),
+                                                   np.sum(n_bins[k][i][j][index]))
+                    C_rat_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index],
+                                                                          C_rat[k][i][j][index])),
+                                                       np.sum(n_bins[k][i][j][index]))
+                    E_rat_min_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index],
+                                                                              E_rat_min[k][i][j][index])),
+                                                           np.sum(n_bins[k][i][j][index]))
+                    E_rat_max_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index],
+                                                                              E_rat_max[k][i][j][index])),
+                                                           np.sum(n_bins[k][i][j][index]))
+                elif r < len(centrality[0]) - 1:
+                    index = (p_bins[k][i][j] <= centrality[j][r]) & (p_bins[k][i][j] > centrality[j][r-1])
+                    C_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index], C[k][i][j][index])),
+                                                   np.sum(n_bins[k][i][j][index]))
+                    E_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index], E[k][i][j][index])),
+                                                   np.sum(n_bins[k][i][j][index]))
+                    C_rat_cbwc[k][i][j][r] = np.divide(
+                        np.sum(np.multiply(n_bins[k][i][j][index], C_rat[k][i][j][index])),
+                        np.sum(n_bins[k][i][j][index]))
+                    E_rat_min_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index],
+                                                                              E_rat_min[k][i][j][index])),
+                                                           np.sum(n_bins[k][i][j][index]))
+                    E_rat_max_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index],
+                                                                              E_rat_max[k][i][j][index])),
+                                                           np.sum(n_bins[k][i][j][index]))
+                else:
+                    index = p_bins[k][i][j] > centrality[j][r-1]
+                    print("0-5 min val:", np.min(p_bins[k][i][j][index]))
+                    print("cent val:", centrality[j][r-1])
+                    C_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index], C[k][i][j][index])),
+                                                   np.sum(n_bins[k][i][j][index]))
+                    E_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index], E[k][i][j][index])),
+                                                   np.sum(n_bins[k][i][j][index]))
+                    C_rat_cbwc[k][i][j][r] = np.divide(
+                        np.sum(np.multiply(n_bins[k][i][j][index], C_rat[k][i][j][index])),
+                        np.sum(n_bins[k][i][j][index]))
+                    E_rat_min_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index],
+                                                                              E_rat_min[k][i][j][index])),
+                                                           np.sum(n_bins[k][i][j][index]))
+                    E_rat_max_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index],
+                                                                              E_rat_max[k][i][j][index])),
+                                                           np.sum(n_bins[k][i][j][index]))
+C_labels_cbwc = [r'$C_1$', r'$C_2$', r'$C_3$', r'$C_4$']
+for i in range(4):
+    fig, ax = plt.subplots(3, len(ylabels), figsize=(16, 9), constrained_layout=True)
+    for j in range(3):
+        for k in range(len(ylabels)):
+            r = j * len(ylabels)
+            if k == 2:
+                ax[j][k].fill_between(centralities, C_cbwc[i][j][k][::-1] + E_cbwc[i][j][k][::-1],
+                                      C_cbwc[i][j][k][::-1] - E_cbwc[i][j][k][::-1],
+                                      color=color[k], alpha=0.5)
+                ax[j][k].plot(centralities, C_cbwc[i][j][k][::-1], marker=markers[k], ms=10, lw=0, mfc='none',
+                              color=color[k])
+            else:
+                ax[j][k].fill_between(centralities, C_cbwc[i][j][k] + E_cbwc[i][j][k],
+                                      C_cbwc[i][j][k] - E_cbwc[i][j][k],
+                                      color=color[k], alpha=0.5)
+                ax[j][k].plot(centralities, C_cbwc[i][j][k], marker=markers[k], ms=10, lw=0, mfc='none',
+                              color=color[k])
+            ax[j][k].set_xticklabels(centralities, rotation=90)
+            ax[j][k].set_xlabel(ylabels[k], fontsize=15)
+    fig.suptitle(C_labels_cbwc[i], fontsize=20)
+    # plt.show()
+    plt.close()
+for i in range(4):
+    fig, ax = plt.subplots(3, len(ylabels), figsize=(16, 9), constrained_layout=True)
+    for j in range(3):
+        for k in range(len(ylabels)):
+            r = j * len(ylabels)
+            if k == 2:
+                ax[j][k].fill_between(centralities, E_rat_max_cbwc[i][j][k][::-1], E_rat_min_cbwc[i][j][k][::-1],
+                                      color=color[k], alpha=0.5)
+                ax[j][k].plot(centralities, C_rat_cbwc[i][j][k][::-1], color=color[k], marker=markers[k], ms=10, lw=0,
+                              mfc='none')
+            else:
+                ax[j][k].fill_between(centralities, E_rat_max_cbwc[i][j][k], E_rat_min_cbwc[i][j][k],
+                                      color=color[k], alpha=0.5)
+                ax[j][k].plot(centralities, C_rat_cbwc[i][j][k], color=color[k], marker=markers[k], ms=10, lw=0,
+                              mfc='none')
+            ax[j][k].set_xticklabels(centralities, rotation=90)
+            ax[j][k].set_xlabel(ylabels[k], fontsize=15)
+    fig.suptitle(C_labels_rat[i], fontsize=20)
+    # plt.show()
+    plt.close()
+for i in range(4):
+    plt.figure(figsize=(12, 8))
+    for k in range(len(EPD_set)):
+        if EPD_set[k] == 2:
+            plt.fill_between(centralities, C_cbwc[i][2][EPD_set[k]][::-1] + E_cbwc[i][2][EPD_set[k]][::-1],
+                                  C_cbwc[i][2][EPD_set[k]][::-1] - E_cbwc[i][2][EPD_set[k]][::-1],
+                                  color=color[EPD_set[k]], alpha=0.5)
+            plt.plot(centralities, C_cbwc[i][j][EPD_set[k]][::-1], marker=markers[EPD_set[k]], ms=10, lw=0, mfc='none',
+                          color=color[EPD_set[k]], label=ylabels[EPD_set[k]])
+        else:
+            plt.fill_between(centralities, C_cbwc[i][j][EPD_set[k]] + E_cbwc[i][j][EPD_set[k]],
+                                  C_cbwc[i][j][EPD_set[k]] - E_cbwc[i][j][EPD_set[k]],
+                                  color=color[EPD_set[k]], alpha=0.5)
+            plt.plot(centralities, C_cbwc[i][j][EPD_set[k]], marker=markers[EPD_set[k]], ms=10, lw=0, mfc='none',
+                          color=color[EPD_set[k]], label=ylabels[EPD_set[k]])
+        plt.xticks(rotation=90)
+        plt.xlabel('X', fontsize=15)
+    plt.title(C_labels_cbwc[i], fontsize=20)
+    plt.legend()
+    plt.show()
+    plt.close()
+for i in range(4):
+    plt.figure(figsize=(12, 8))
+    for k in range(len(EPD_set)):
+        if EPD_set[k] == 2:
+            plt.fill_between(centralities, E_rat_max_cbwc[i][2][EPD_set[k]][::-1],
+                                  E_rat_min_cbwc[i][2][EPD_set[k]][::-1],
+                                  color=color[EPD_set[k]], alpha=0.5)
+            plt.plot(centralities, C_rat_cbwc[i][j][EPD_set[k]][::-1], marker=markers[EPD_set[k]], ms=10, lw=0,
+                     mfc='none', color=color[EPD_set[k]], label=ylabels[EPD_set[k]])
+        else:
+            plt.fill_between(centralities, E_rat_max_cbwc[i][j][EPD_set[k]],
+                                  E_rat_min_cbwc[i][j][EPD_set[k]],
+                                  color=color[EPD_set[k]], alpha=0.5)
+            plt.plot(centralities, C_rat_cbwc[i][j][EPD_set[k]], marker=markers[EPD_set[k]], ms=10, lw=0, mfc='none',
+                          color=color[EPD_set[k]], label=ylabels[EPD_set[k]])
+        plt.xticks(rotation=90)
+        plt.xlabel('X', fontsize=15)
+    plt.title(C_labels[i], fontsize=20)
+    plt.legend()
+    plt.show()
+    plt.close()
+#######################################################################################################
+# This is a sad bunch of noise right now; ignore it. If I fix it, you won't even see this message ... #
+#######################################################################################################
 os.chdir(data_directory)
 C_cbwc = []
 E_cbwc = []
@@ -314,8 +544,8 @@ for k in range(4):
         Ec_d_no_cbwc[k].append([])
 
         for j in range(len(ylabels)):
-            C_cbwc[k][i].append(rdr.cbwc(pro_counts[i][j],
-                                         pro_bins[i][j],
+            C_cbwc[k][i].append(rdr.cbwc(pro_counts[i][j],  # TODO Rewrite CBWC with new array values.
+                                         pro_bins[i][j],  # TODO Don't forget you made n_bins!
                                          C[k][i][j],
                                          centrality[j]))
             E_cbwc[k][i].append(rdr.cbwc(pro_counts[i][j],
