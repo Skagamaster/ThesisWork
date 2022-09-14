@@ -43,7 +43,7 @@ ylabels = [r'$X_{RM3}$', r'$X_{RM1}$', 'b (fm)', r'$X_{LW}$',
            r'$X_{ReLU}$', r'$X_{swish}$', r'$X_{CNN}$']
 xlabels = ['protons', 'antiprotons', 'net protons']
 EPD_set = [3, 4, 5, 6]
-Final_set = [0, 1, 2, 3, 4]
+Final_set = [0, 2, 3, 4]
 
 # First we find the cumulants and their errors.
 C = [[], [], [], []]
@@ -154,7 +154,7 @@ for k in range(4):
                 E[k][i][j] = E[k][i][j][index]
                 E_rat[k][i][j] = E_rat[k][i][j][index]
 
-# This bit of code makes sure all cumulants ahve the same x coordinates (e.g. not
+# This bit of code makes sure all cumulants have the same x coordinates (e.g. not
 # a seperate length for the antiproton and net proton cumulant arrays, or a seperate
 # length for C4 vs C2).
 len_check = copy.deepcopy(p_bins)
@@ -374,8 +374,6 @@ for k in range(4):
                                                            np.sum(n_bins[k][i][j][index]))
                 else:
                     index = p_bins[k][i][j] > centrality[j][r-1]
-                    print("0-5 min val:", np.min(p_bins[k][i][j][index]))
-                    print("cent val:", centrality[j][r-1])
                     C_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index], C[k][i][j][index])),
                                                    np.sum(n_bins[k][i][j][index]))
                     E_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index], E[k][i][j][index])),
@@ -389,6 +387,22 @@ for k in range(4):
                     E_rat_max_cbwc[k][i][j][r] = np.divide(np.sum(np.multiply(n_bins[k][i][j][index],
                                                                               E_rat_max[k][i][j][index])),
                                                            np.sum(n_bins[k][i][j][index]))
+
+print("RM3")
+print(C_rat_cbwc[2][2][0])
+print(E_rat_min_cbwc[2][2][0])
+print(E_rat_max_cbwc[2][2][0])
+print("b")
+print(C_rat_cbwc[2][2][2])
+print(E_rat_min_cbwc[2][2][2])
+print(E_rat_max_cbwc[2][2][2])
+print("ReLU")
+print(C_rat_cbwc[2][2][4])
+print(E_rat_min_cbwc[2][2][4])
+print(E_rat_max_cbwc[2][2][4])
+plt.plot(1)
+plt.show()
+
 C_labels_cbwc = [r'$C_1$', r'$C_2$', r'$C_3$', r'$C_4$']
 for i in range(4):
     fig, ax = plt.subplots(3, len(ylabels), figsize=(16, 9), constrained_layout=True)
@@ -451,7 +465,7 @@ for i in range(4):
         plt.xlabel('X', fontsize=15)
     plt.title(C_labels_cbwc[i], fontsize=20)
     plt.legend()
-    plt.show()
+    # plt.show()
     plt.close()
 for i in range(4):
     plt.figure(figsize=(12, 8))
@@ -468,6 +482,46 @@ for i in range(4):
                                   color=color[EPD_set[k]], alpha=0.5)
             plt.plot(centralities, C_rat_cbwc[i][j][EPD_set[k]], marker=markers[EPD_set[k]], ms=10, lw=0, mfc='none',
                           color=color[EPD_set[k]], label=ylabels[EPD_set[k]])
+        plt.xticks(rotation=90)
+        plt.xlabel('X', fontsize=15)
+    plt.title(C_labels[i], fontsize=20)
+    plt.legend()
+    # plt.show()
+    plt.close()
+for i in range(4):
+    plt.figure(figsize=(12, 8))
+    for k in range(len(Final_set)):
+        if Final_set[k] == 2:
+            plt.fill_between(centralities, C_cbwc[i][2][Final_set[k]][::-1] + E_cbwc[i][2][Final_set[k]][::-1],
+                             C_cbwc[i][2][Final_set[k]][::-1] - E_cbwc[i][2][Final_set[k]][::-1],
+                             color=color[Final_set[k]], alpha=0.5)
+            plt.plot(centralities, C_cbwc[i][j][Final_set[k]][::-1], marker=markers[Final_set[k]], ms=10, lw=0,
+                     mfc='none', color=color[Final_set[k]], label=ylabels[Final_set[k]])
+        else:
+            plt.fill_between(centralities, C_cbwc[i][j][Final_set[k]] + E_cbwc[i][j][Final_set[k]],
+                             C_cbwc[i][j][Final_set[k]] - E_cbwc[i][j][Final_set[k]],
+                             color=color[Final_set[k]], alpha=0.5)
+            plt.plot(centralities, C_cbwc[i][j][Final_set[k]], marker=markers[Final_set[k]], ms=10, lw=0, mfc='none',
+                     color=color[Final_set[k]], label=ylabels[Final_set[k]])
+        plt.xticks(rotation=90)
+        plt.xlabel('X', fontsize=15)
+    plt.title(C_labels_cbwc[i], fontsize=20)
+    plt.legend()
+    plt.show()
+    plt.close()
+for i in range(4):
+    plt.figure(figsize=(12, 8))
+    for k in range(len(Final_set)):
+        if Final_set[k] == 2:
+            plt.fill_between(centralities, E_rat_max_cbwc[i][2][Final_set[k]][::-1],
+                             E_rat_min_cbwc[i][2][Final_set[k]][::-1], color=color[Final_set[k]], alpha=0.5)
+            plt.plot(centralities, C_rat_cbwc[i][j][Final_set[k]][::-1], marker=markers[Final_set[k]], ms=10, lw=0,
+                     mfc='none', color=color[Final_set[k]], label=ylabels[Final_set[k]])
+        else:
+            plt.fill_between(centralities, E_rat_max_cbwc[i][j][Final_set[k]],
+                             E_rat_min_cbwc[i][j][Final_set[k]], color=color[Final_set[k]], alpha=0.5)
+            plt.plot(centralities, C_rat_cbwc[i][j][Final_set[k]], marker=markers[Final_set[k]], ms=10, lw=0,
+                     mfc='none', color=color[Final_set[k]], label=ylabels[Final_set[k]])
         plt.xticks(rotation=90)
         plt.xlabel('X', fontsize=15)
     plt.title(C_labels[i], fontsize=20)

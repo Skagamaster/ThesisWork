@@ -3,6 +3,53 @@ import uproot as up
 import os
 import matplotlib.pyplot as plt
 
+'''
+Events before QA:
+200 GeV: 11.74M
+9.2 GeV: 232k
+27 GeV: 605k
+19.6 GeV: 4.5M
+'''
+
+os.chdir(r'F:\2020Picos\9.2_GeV')
+folders = os.listdir()
+events = 0
+
+list_pico = os.listdir()
+count = 1
+for j in list_pico:
+    if count % 50 == 0:
+        print(count, "of", len(list_pico))
+    count += 1
+    try:
+        events += len(up.open(j)['PicoDst']['Event']['Event.mRunId'].array())
+    except Exception as e:
+        print("Exception on", j)
+print(events)
+plt.plot(0)
+plt.show()
+
+for i in folders:
+    try:
+        os.chdir(i)
+        list_pico = os.listdir()
+        count = 1
+        for j in list_pico:
+            if count % 50 == 0:
+                print(count, "of", len(list_pico))
+            count += 1
+            try:
+                events += len(up.open(j)['PicoDst']['Event']['Event.mRunId'].array())
+            except Exception as e:
+                print("Exception on", j)
+        os.chdir(r'F:\2019Picos\AuAu200')
+    except Exception as e:
+        print("Nopers on", i)
+print(events)
+
+plt.plot(0)
+plt.show()
+
 
 def get_avestd(ar):
     counts = ar[0]

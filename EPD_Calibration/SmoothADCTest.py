@@ -8,32 +8,43 @@ from scipy.signal import argrelextrema as arex
 from scipy.stats import moyal
 from scipy.optimize import curve_fit
 from matplotlib.backends.backend_pdf import PdfPages
+import pico_reader as pr
+
+
+# This function takes an index and returns the EWxPPyTTz information.
+def EPDTile(pos=123):
+    ew = int(pos / 372)
+    pp = int((pos - 372 * ew) / 31) + 1
+    tt = (pos % 31) + 1
+    return [ew, pp, tt]
+
+
+def epd_tile(a):
+    ew = (a / 372).astype(int)
+    pp = ((a - 372 * ew) / 31 + 1).astype(int)
+    tt = ((a % 31) + 1).astype(int)
+    return ew, pp, tt
 
 
 # Number of curves to consider in Moyal fit.
 nMIPs = int(2)
+
+"""
+I'm restarting this code using the SciPy methodology to just get a fit on a known tile.
+Let's see how we get on.
+"""
+pico = pr.PicoDST()
+pico.import_data(r'F:\AuAu200\191\st_physics_20191005_raw_7000005.picoDst.root')
+for i in range(20):
+    plt.title(EPDTile(i))
+    plt.hist(pico.epd_tiles[:][i], range=(0, 2000), bins=2000, histtype='step')
+    plt.show()
 
 # Grab the data to be worked on.
 os.chdir(r'C:\PhysicsProcessing\7.7GeV\Days')
 daySet = np.asarray((31, 32, 33, 34, 35, 36, 37))
 for h in daySet:
     data = up.open('0{}.root'.format(h))
-
-    # This function takes an index and returns the EWxPPyTTz information.
-
-    def EPDTile(pos=123):
-        ew = int(pos/372)
-        pp = int((pos-372*ew)/31) + 1
-        tt = (pos % 31) + 1
-        return [ew, pp, tt]
-
-
-    def epd_tile(a):
-        ew = (a / 372).astype(int)
-        pp = ((a - 372 * ew) / 31 + 1).astype(int)
-        tt = ((a % 31) + 1).astype(int)
-        return ew, pp, tt
-
     # This section of code smooths out the ADC distributions (helpful for
     # individual runs or low statistics), then finds the local minima and
     # maxima of those smoothed distributions.
@@ -60,7 +71,6 @@ for h in daySet:
     plt.plot(ADC[1], lw=3)
     plt.plot(adc_smooth[1], lw=2)
     plt.show()
-    break
 
     for i in range(r):
         placeholder = sgf(ADC[i], 141, 5)  # initial smoothing

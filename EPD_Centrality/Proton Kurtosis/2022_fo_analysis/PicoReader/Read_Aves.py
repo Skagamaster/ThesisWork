@@ -8,6 +8,13 @@
 #
 # /
 
+"""
+Parent macro: find_aves.py
+This takes the output from the parent and finds bad runs based
+on average values for various quantities. Analysis can be done
+then on the QA'd pico set.
+"""
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt

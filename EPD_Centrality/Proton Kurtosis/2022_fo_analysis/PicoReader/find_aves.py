@@ -12,8 +12,9 @@
 This code is to get a few things you'll need in order to
 start the analysis. You'll need average quantities in order
 to find your bad runs (processed in Read_Aves.py). But first,
-you need to calibrate the EPD in order to have correct values.
-This functionality is included.
+you need to calibration values for the EPD in order to have
+correct values. This functionality is included if calibrations
+are complete.
 In addition, you'll want some histograms for both display
 purposes (to see if everything works as it ought) and to
 calibrate nSigmaProton mean shift (done in nSigmaCalibrate.py).
