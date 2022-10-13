@@ -13,9 +13,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-badruns = np.load(r"D:\14GeV\Thesis\PythonArrays\badruns_protons.npy", allow_pickle=True)
+badruns = np.load(r"C:\200\PythonArrays\badruns_protons.npy", allow_pickle=True)
 badruns = np.char.add(badruns.astype('str'), "_protons.npy")
-os.chdir(r"D:\14GeV\Thesis\PythonArrays\Analysis_Proton_Arrays")
+os.chdir(r"C:\200\PythonArrays\Analysis_Proton_Arrays")
 files = np.asarray(os.listdir(), dtype='str')
 files = files[np.isin(files, badruns, invert=True)]
 refmult3 = []
