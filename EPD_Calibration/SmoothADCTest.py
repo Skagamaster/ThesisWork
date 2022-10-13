@@ -9,6 +9,7 @@ from scipy.stats import moyal
 from scipy.optimize import curve_fit
 from matplotlib.backends.backend_pdf import PdfPages
 import pico_reader as pr
+import glob
 
 
 # This function takes an index and returns the EWxPPyTTz information.
@@ -33,12 +34,32 @@ nMIPs = int(2)
 I'm restarting this code using the SciPy methodology to just get a fit on a known tile.
 Let's see how we get on.
 """
-pico = pr.PicoDST()
-pico.import_data(r'F:\AuAu200\191\st_physics_20191005_raw_7000005.picoDst.root')
-for i in range(20):
-    plt.title(EPDTile(i))
-    plt.hist(pico.epd_tiles[:][i], range=(0, 2000), bins=2000, histtype='step')
-    plt.show()
+list_200 = [r'F:\AuAu200\191', r'F:\AuAu200\192', r'F:\AuAu200\193']
+nums = [191, 192, 193]
+for k in range(len(list_200)):
+    print("***********************************************")
+    print("Now serving day", nums[k])
+    os.chdir(list_200[k])
+    picofile_list = glob.glob('*.root')
+    epd_array = np.zeros((2, 12, 31, 2000))
+    print("Working on file:")
+    counter = 0
+    for file in picofile_list:
+        if counter % 50 == 0:
+            print(counter+1, "of", len(picofile_list))
+        counter += 1
+        try:
+            pico = pr.PicoDST()
+            pico.import_data(file)
+            for i in range(744):
+                count, bins = np.histogram(pico.epd_tiles[:, i], bins=2000, range=(0, 2000))
+                epd_array[EPDTile(i)[0]][EPDTile(i)[1]-1][EPDTile(i)[2]-1] += count
+        except Exception as e:
+            continue
+    os.chdir(r'C:\200')
+    np.save('cal_vals_{}.npy'.format(nums[k]), epd_array)
+print("All done!")
+exit()
 
 # Grab the data to be worked on.
 os.chdir(r'C:\PhysicsProcessing\7.7GeV\Days')

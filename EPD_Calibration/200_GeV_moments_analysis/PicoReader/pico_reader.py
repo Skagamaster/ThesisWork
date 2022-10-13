@@ -98,8 +98,9 @@ class EPD_Hits:
         self.position = np.abs(self.mID) // 100
         self.tiles = np.abs(self.mID) % 100
         self.row = ((np.abs(self.mID) % 100) // 2) + 1
-
         # The following is to use calibrated values for FastOffline.
+        # This is for using the .txt method.
+        """
         if cal_file is not None:
             ew = ak.where(self.mID > 0, 1, 0)
             pp = self.position - 1
@@ -107,6 +108,19 @@ class EPD_Hits:
             epd_flat = (ew * 372) + (pp * 31) + tt
             counts = ak.num(epd_flat)
             array = ak.flatten(epd_flat)
+            cal_vals = cal_file[array]
+            cal_vals = ak.unflatten(cal_vals, counts)
+            self.nMip = ak.where(self.status_is_good, self.adc / cal_vals, 0)
+        """
+        # And for if using the numpy file ([ew][pp-1][tt-1]).
+        if cal_file is not None:
+            ew = ak.where(self.mID > 0, 1, 0)
+            pp = self.position - 1
+            tt = self.tiles - 1
+            epd_flat = (ew * 372) + (pp * 31) + tt
+            counts = ak.num(epd_flat)
+            array = ak.flatten(epd_flat)
+            cal_file = cal_file.flatten()
             cal_vals = cal_file[array]
             cal_vals = ak.unflatten(cal_vals, counts)
             self.nMip = ak.where(self.status_is_good, self.adc / cal_vals, 0)
@@ -129,16 +143,6 @@ class EPD_Hits:
             ring_sum[i] = ring_i
         return ring_sum
 
-    def generate_full_tiles(self):
-        tile_array = np.zeros((len(self.adc), 744))
-        ew = ak.where(self.mID > 0, 1, 0)
-        pp = self.position - 1
-        tt = self.tiles - 1
-        pos = ew*372 + pp*31 + tt
-        for i in range(len(self.adc)):
-            tile_array[i][pos[i]] = self.adc[i]
-        return tile_array
-
 
 class PicoDST:
     """This class makes the PicoDST from the root file, along with
@@ -159,7 +163,6 @@ class PicoDST:
         self.tofmatch = None
         self.beta_eta_1 = None
         self.epd_hits = None
-        self.epd_tiles = None
         self.p_t = None
         self.p_g = None
         self.phi = None
@@ -284,7 +287,6 @@ class PicoDST:
                 epd_hit_mQTdata = data["PicoDst"]["EpdHit"]["EpdHit.mQTdata"].array()
                 epd_hit_mnMIP = data["PicoDst"]["EpdHit"]["EpdHit.mnMIP"].array()
                 self.epd_hits = EPD_Hits(epd_hit_id_data, epd_hit_mQTdata, epd_hit_mnMIP, cal_file)
-                self.epd_tiles = self.epd_hits.generate_full_tiles()
                 self.epd_hits = self.epd_hits.generate_epd_hit_matrix()
 
         # except ValueError:  # Skip empty picos.
