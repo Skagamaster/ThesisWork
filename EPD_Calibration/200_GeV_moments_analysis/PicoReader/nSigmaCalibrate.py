@@ -37,11 +37,11 @@ from scipy.signal import argrelextrema as arex
 from scipy.optimize import curve_fit
 
 
-ROOT = False
+ROOT = True
 
 if ROOT is True:
-    os.chdir(r'D:\14GeV\Thesis\After_Qa_Picos')
-    pdf_pages = PdfPages(r'D:\14GeV\Thesis\nSigmaProton.pdf')
+    os.chdir(r'C:\200\PythonArrays\nSigmaProtonCal')
+    pdf_pages = PdfPages(r'C:\200\nSigmaProton.pdf')
 else:
     os.chdir(r'D:\14GeV\Thesis\PythonArrays\nSigmaProtonCal')
     pdf_pages = PdfPages(r'D:\14GeV\Thesis\nSigmaPython.pdf')
@@ -75,7 +75,7 @@ print("Working on file:")
 for k in range(len(files)):
     if (k+1) % 100 == 0:
         print(k+1)
-    if ROOT is True:
+    if ROOT is not True:
         data = up.open(files[k])
         # Avoid empty files.
         if np.mean(data['hNSigmaProton_1'].to_numpy()[0]) == 0:
@@ -119,8 +119,8 @@ for k in range(len(files)):
             ax[a, b].plot(xaxes[i], gauss_peak_2, "y")
             ax[a, b].fill_between(xaxes[i], gauss_peak_2.min(), gauss_peak_2, facecolor="yellow", alpha=0.5)
         except Exception as e:  # Fall back to fitting with a single Gaussian if the above fails.
-            print("File", files[k], "p_T", pt_vals[i], '\n',
-                  "Too close for missles; switching to guns.")
+            print("Run", files[k][0:8] + ",", "p_T range:", pt_vals[i][8:15], '\n',
+                  "Too close for missiles; switching to guns.")
             try:
                 popt_gauss, pcov_gauss = curve_fit(gaussian, xaxes[i], nSigs[i],
                                                    p0=[np.max(nSigs[i]), 0, 1],
@@ -136,7 +136,7 @@ for k in range(len(files)):
                 ax[a, b].fill_between(xaxes[i], gauss_peak_1.min(), gauss_peak_1, facecolor="green", alpha=0.5)
             except Exception as e:  # Fall back to SavGol as a last resort.
                 try:
-                    print("It's now a smooth criminal.")
+                    print("Mu value is now a smooth criminal.")
                     sg = sgf(nSigs[i], 201, 6)
                     maxes = np.asarray(xaxes[i][np.hstack(np.asarray(arex(sg, np.greater, order=10)))])
                     # The selection is based on the plots; you'll have to
@@ -158,16 +158,14 @@ for k in range(len(files)):
                         print("But I'm keeping it. You can't stop me.")
                     ax[a, b].plot(xaxes[i], nSigs[i], color='black', label='raw')
                     ax[a, b].plot(xaxes[i], sg, lw=3, color='pink', label="Smoothed")
-                    for j in maxes:
-                        ax[a, b].axvline(j, color='red', label=r'$\frac{d^2f}{dx^2}$ max')
-                    ax[a, b].axvline(true_mu, color='blue', lw=3, label='p peak')
+                    # ax[a, b].axvline(true_mu, color='blue', lw=3, label='p peak')
                     ax[a, b].set_xlabel(r'$n\sigma_{p}$', fontsize=12, loc='right')
                     ax[a, b].set_ylabel('N', fontsize=12, loc='top')
                     ax[a, b].set_title(pt_vals[i], fontsize=15)
-                    ax[-1, -1].plot(1, c='r', lw=4, label=r'$\frac{d^2f}{dx^2}$ max')
                     ax[-1, -1].plot(1, c='pink', lw=4, label=r'SavGol')
                 except Exception as e:
                     true_mu = 0  # This is just giving up.
+                    print("The fellowship has been in vain. Mu is defined as 0.")
         nSigCal[count].append(true_mu)
         ax[a, b].axvline(true_mu, color='blue', lw=3, label='p peak')
         ax[a, b].set_xlabel(r'$n\sigma_{p}$', fontsize=12, loc='right')
@@ -176,7 +174,7 @@ for k in range(len(files)):
     ax[-1, -1].set_axis_off()
     ax[-1, -1].plot(1, c='yellow', lw=4, label=r'1st Gaussian')
     ax[-1, -1].plot(1, c='green', lw=4, label=r'2nd Gaussian')
-    ax[-1, -1].plot(1, c='orange', lw=4, label=r'2 Gaussian Fit')
+    ax[-1, -1].plot(1, c='orange', lw=4, label=r'Gaussian Fit')
     ax[-1, -1].plot(1, c='black', lw=4, label=r'Spectra')
     ax[-1, -1].plot(1, c='blue', lw=4, label=r'$n\sigma_p$ $\mu$')
     ax[-1, -1].legend(fontsize=20, loc='center')
@@ -187,11 +185,11 @@ for k in range(len(files)):
 pdf_pages.close()
 runs = np.asarray(runs).astype('int')
 print(runs.T)
-nSigCal = np.asarray(nSigCal)
+nSigCal = np.asarray(nSigCal, dtype='object')
 # nSigCalGauss = np.asarray(nSigCalGauss)
-np.savetxt(r'D:\14GeV\Thesis\nSigmaCal.txt', nSigCal, fmt='%f', delimiter=',', newline='},{')
+np.savetxt(r'C:\200\nSigmaCal.txt', nSigCal, fmt='%f', delimiter=',', newline='},{')
 # np.savetxt(r'D:\14GeV\Thesis\nSigmaProton_2g.txt', nSigCalGauss, fmt='%f', delimiter=',', newline='},{')
-np.savetxt(r'D:\14GeV\Thesis\runs.txt', runs.T, fmt='%d', delimiter=',', newline=',')
-np.save(r'D:\14GeV\Thesis\PythonArrays\nSigmaCal.npy', nSigCal)
+np.savetxt(r'C:\200\runs.txt', runs.T, fmt='%d', delimiter=',', newline=',')
+np.save(r'C:\200\PythonArrays\nSigmaCal.npy', nSigCal)
 # np.save(r'D:\14GeV\Thesis\PythonArrays\nSigmaProton_2g.npy', nSigCalGauss)
-np.save(r'D:\14GeV\Thesis\PythonArrays\runs.npy', runs.T)
+np.save(r'C:\200\PythonArrays\runs.npy', runs.T)

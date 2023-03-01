@@ -28,8 +28,9 @@ import os
 import matplotlib.pyplot as plt
 import pico_reader as rdr
 
-data_direct = r'F:\AuAu200'  # Directory where the picos live
+data_direct = r'F:\AuAu200\Runs'  # Directory where the picos live
 save_direct = r'C:\200\QA_Arrays'  # Directory for saving results
+file_type = 1  # 0 for standard pico names, 1 for names as run ID.
 day_set = np.asarray([191, 192, 193])
 
 os.chdir(data_direct)
@@ -63,19 +64,26 @@ running_counter = 0
 print("Chewing on file:")
 for i in files:
     try:
-        if running_counter % 10 == 0:
+        if running_counter % int(len(files)/10) == 0:
             print(running_counter + 1, "of", len(files))
         running_counter += 1
-        if i[11] == '2':
-            day = int(i[13:16])
+        if file_type == 0:
+            if i[11] == '2':
+                day = int(i[13:16])
+            else:
+                day = int(i[17:20])
         else:
-            day = int(i[17:20])
+            day = int(i[2:5])
+
+        test_pico = up.open(i)
+        print(test_pico['PicoDst'])
+        continue
+
         cal_index = np.where(cal_set <= day)[0][-1]
         epd_cal = cal_files[cal_index]
         pico = rdr.PicoDST()
-
         pico.import_data(i, cal_file=epd_cal)
-
+        # print("Times:\n", pico.time_blocks)
         index = (abs(pico.v_z) <= 30.0)  # Basic vertex cut
         index_t = abs(pico.nhitsfit[index]) >= 10  # Low level track quality cut
         runs[0].append(pico.run_id)
@@ -125,6 +133,10 @@ for i in files:
         print(e)
         running_counter += 1
         continue
+
+plt.plot(0)
+plt.show()
+
 runs = np.asarray(runs)
 aves = np.asarray(aves)
 stds = np.asarray(stds)

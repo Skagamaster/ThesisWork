@@ -16,6 +16,8 @@ import awkward as ak
 from scipy.signal import savgol_filter as sgf
 from scipy.stats import skew, kurtosis, moment
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
+import time
 
 # Speed of light, in m/s
 SPEED_OF_LIGHT = 299792458
@@ -61,8 +63,8 @@ def get_ave(arr):
 
 # TODO Check to see that these results are reasonable. Graph against p_t.
 def rapidity(p_z, p_g):
-    e_p = np.power(np.add(PROTON_MASS ** 2, np.power(p_g, 2)), 1 / 2)
-    y = 0.5 * np.log(np.divide(e_p + p_z, e_p - p_z))
+    e_p = np.sqrt(np.add(PROTON_MASS ** 2, np.power(p_g, 2)))
+    y = np.multiply(0.5, np.log(np.divide(np.add(e_p, p_z), np.subtract(e_p, p_z))))
     return y
 
 
@@ -191,6 +193,10 @@ class PicoDST:
         self.event_df = None
         self.track_df = None
         self.toftrack_df = None
+        self.time_blocks = []
+        self.block_2 = []
+        self.block_3 = []
+        self.block_EPD = []
 
         if data_file is not None:
             self.import_data(data_file)
@@ -206,6 +212,8 @@ class PicoDST:
             nsig_cals (float): Calibration numbers for nSigma values"""
         try:
             with up.open(data_in) as data:
+                t_0 = time.time()
+                ################### Time Block 1 ################################################
                 self.num_events = len(data["PicoDst"]["Event"]["Event.mPrimaryVertexX"].array())
                 self.run_id = int(ak.to_numpy(ak.flatten(data["PicoDst"]["Event"]["Event.mRunId"].array()))[0])
                 # Make vertices
@@ -222,29 +230,67 @@ class PicoDST:
                                data["PicoDst"]["Event"]["Event.mRefMult3NegWest"].array()))
                 self.tofmult = ak.to_numpy(
                     ak.flatten(data["PicoDst"]["Event"]["Event.mbTofTrayMultiplicity"].array()))
+                t_1 = time.time()
+                self.time_blocks.append(t_1-t_0)
+                ################### Time Block 2 ################################################
                 # Make p_g and p_t
                 p_x = data["PicoDst"]["Track"]["Track.mGMomentumX"].array()
                 p_y = data["PicoDst"]["Track"]["Track.mGMomentumY"].array()
-                p_y = ak.where(p_y == 0.0, 1e-10, p_y)  # to avoid infinities
+                # p_y = ak.where(p_y == 0.0, 1e-10, p_y)  # to avoid infinities
                 p_z = data["PicoDst"]["Track"]["Track.mGMomentumZ"].array()
-                self.p_t = np.sqrt(np.power(p_x, 2) + np.power(p_y, 2))
-                self.p_g = np.sqrt((np.power(p_x, 2) + np.power(p_y, 2) + np.power(p_z, 2)))
+
+                # This is a little faster. To optimise, do this with all track arrays.
+                """
+                counts = ak.num(p_x)
+                p_x = ak.flatten(p_x)
+                p_y = ak.flatten(p_y)
+                p_z = ak.flatten(p_z)
+                p_t = np.sqrt(np.add(np.power(p_x, 2), np.power(p_y, 2)))
+                p_g = np.sqrt(np.power(p_x, 2) + np.power(p_y, 2) + np.power(p_z, 2))
+                eta = np.arcsinh(np.divide(p_z, p_t))
+                rapid = rapidity(p_z, p_g)
+                self.p_t = ak.unflatten(p_t, counts)
+                self.p_g = ak.unflatten(p_g, counts)
+                self.eta = ak.unflatten(eta, counts)
+                self.rapidity = ak.unflatten(rapid, counts)
+                p_x = ak.unflatten(p_x, counts)
+                p_y = ak.unflatten(p_y, counts)
+                p_z = ak.unflatten(p_z, counts)
+
+                """
+                delta_0 = time.time()
+                self.p_t = np.sqrt(np.add(np.power(p_x, 2), np.power(p_y, 2)))
+                delta_1 = time.time()
+                self.p_g = np.sqrt(np.power(p_x, 2) + np.power(p_y, 2) + np.power(p_z, 2))
+                delta_2 = time.time()
                 self.eta = np.arcsinh(np.divide(p_z, self.p_t))
+                delta_3 = time.time()
                 self.rapidity = rapidity(p_z, self.p_g)
+                t_2 = time.time()
+                self.time_blocks.append(t_2-t_1)
+                self.block_2.append((delta_1-delta_0, delta_2-delta_1, delta_3-delta_2, t_2-delta_3))
+                ################### Time Block 3 ################################################
                 # Make dca
                 o_x = data["PicoDst"]["Track"]["Track.mOriginX"].array()
                 o_y = data["PicoDst"]["Track"]["Track.mOriginY"].array()
                 o_z = data["PicoDst"]["Track"]["Track.mOriginZ"].array()
+                delta_1 = time.time()
                 self.dca = np.sqrt((np.power(o_x, 2) + np.power(o_y, 2) + np.power(o_z, 2))) / 100.0
                 self.nhitsdedx = data["PicoDst"]["Track"]["Track.mNHitsDedx"].array()
                 self.nhitsfit = data["PicoDst"]["Track"]["Track.mNHitsFit"].array()
                 self.nhitsmax = data["PicoDst"]["Track"]["Track.mNHitsMax"].array()
+                delta_2 = time.time()
                 self.nhitsmax = ak.where(self.nhitsmax == 0, 1e-10, self.nhitsmax)  # to avoid infinities
+                delta_3 = time.time()
                 self.dedx = data["PicoDst"]["Track"]["Track.mDedx"].array()
                 self.nsigma_proton = data["PicoDst"]["Track"]["Track.mNSigmaProton"].array() / 1000.0
                 self.nsigma_pion = data["PicoDst"]["Track"]["Track.mNSigmaPion"].array() / 1000.0
                 self.nsigma_electron = data["PicoDst"]["Track"]["Track.mNSigmaElectron"].array() / 1000.0
                 self.nsigma_kaon = data["PicoDst"]["Track"]["Track.mNSigmaKaon"].array() / 1000.0
+                t_3 = time.time()
+                self.time_blocks.append(t_3-t_2)
+                self.block_3.append((delta_1-t_2, delta_2-delta_1, delta_3-delta_2, t_3-delta_3))
+                ################### Time Block 4 ################################################
                 if nsig_cals is not None:
                     for j in range(11):
                         self.nsigma_proton = ak.where((self.p_g > 0.1 * j + 0.1) &
@@ -261,6 +307,9 @@ class PicoDST:
                 be1_4 = ak.where(np.absolute(self.nhitsfit[self.tofpid]) > 10, 1, 0)
                 be1 = be1_1 * be1_2 * be1_3 * be1_4
                 self.beta_eta_1 = ak.sum(be1, axis=-1)
+                t_4 = time.time()
+                self.time_blocks.append(t_4-t_3)
+                ################### Time Block 5 ################################################
                 # Make bTOFmatch
                 nTofMatch = data["PicoDst"]["Event"]["Event.mNBTOFMatch"].array()
                 nTofMatch1 = ak.flatten(ak.where(nTofMatch > 0, 1, 0))
@@ -281,13 +330,21 @@ class PicoDST:
                 self.m_2 = np.multiply(p_squared, b_squared)
                 # Make phi.
                 self.phi = np.arctan2(p_y, p_x)
-
+                t_5 = time.time()
+                self.time_blocks.append(t_5-t_4)
+                ################### Time Block 6 ################################################
                 # Load EPD Data
                 epd_hit_id_data = data["PicoDst"]["EpdHit"]["EpdHit.mId"].array()
                 epd_hit_mQTdata = data["PicoDst"]["EpdHit"]["EpdHit.mQTdata"].array()
                 epd_hit_mnMIP = data["PicoDst"]["EpdHit"]["EpdHit.mnMIP"].array()
+                delta_1 = time.time()
                 self.epd_hits = EPD_Hits(epd_hit_id_data, epd_hit_mQTdata, epd_hit_mnMIP, cal_file)
+                delta_2 = time.time()
                 self.epd_hits = self.epd_hits.generate_epd_hit_matrix()
+                t_6 = time.time()
+                self.time_blocks.append(t_6-t_5)
+                self.block_EPD.append((delta_1-t_5, delta_2-delta_1, t_6-delta_2))
+                ################################################################################
 
         # except ValueError:  # Skip empty picos.
         #     print("ValueError at: " + data_in)  # Identifies the misbehaving file.

@@ -30,7 +30,7 @@ for i in range(2):
         ax[i, j].plot(df_relu['e{}'.format(r + 1)])
         ax[i, j].set_ylabel(labels[r], fontsize=20)
         ax[i, j].set_xlabel("Centrality", fontsize=20)
-plt.show()
+# plt.show()
 plt.close()
 
 # Find percentile (quantile) based centrality.
@@ -136,12 +136,14 @@ c_arr = [c1, c2, c3]
 plt.fill_between(x, c_r[0][0] - e_r[0][0], c_r[0][0] + e_r[0][0], color='r')
 plt.errorbar(x, c_r[0][0], yerr=e_r[0][0], marker='s', color='k', ms=ms,
              mfc='None', elinewidth=ew, lw=0, ecolor='k', label=r'$X_{RM3}$, Delta')
-plt.show()
+plt.legend()
+# plt.show()
 plt.close()
 
 plt.fill_between(x, c_r[0][1] - e_r[0][1], c_r[0][1] + e_r[0][1], color='r')
 plt.errorbar(x, c_r[0][1], yerr=e_r[0][1], marker='s', color='k', ms=ms,
              mfc='None', elinewidth=ew, lw=0, ecolor='k', label=r'$X_{RM3}$, Delta')
+plt.legend()
 # plt.show()
 plt.close()
 
@@ -160,6 +162,13 @@ for i in range(2):
             ax[i, j].legend()
             ax[i, j].set_ylabel(labels[r], fontsize=20)
             ax[i, j].set_xlabel("Centrality", fontsize=20)
+            print(labels[r])
+            print('X_{RM3}')
+            print(c[2][r][3:])
+            print(e[2][r][3:])
+            print('X_{ReLU}')
+            print(c[0][r][3:])
+            print(e[0][r][3:])
 plt.show()
 plt.close()
 

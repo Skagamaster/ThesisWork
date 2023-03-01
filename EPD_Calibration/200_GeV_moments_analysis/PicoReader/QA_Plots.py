@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import os
 
-os.chdir(r"D:\14GeV\Thesis\PythonArrays\Analysis_Histograms")
+os.chdir(r"C:\200\PythonArrays\Analysis_Histograms")
 #################
 # 1D histograms #
 #################
@@ -114,7 +114,7 @@ for i in range(2):
         ax[i, j].set_xlabel(x_1D[k], loc='right', fontsize=15)
         ax[i, j].set_ylabel("Counts", fontsize=15)
         ax[i, j].legend()
-# plt.show()
+plt.show()
 plt.close()
 
 # And now the 2D plots.

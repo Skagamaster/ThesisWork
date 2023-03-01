@@ -28,7 +28,8 @@ import pico_reader as pr
 """
 This loads the eventwise quantities to be analysed.
 """
-df = pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML\trunc_set.pkl')
+df = pd.read_pickle(r'C:\200\ML\full_set.pkl')
+df['net_protons'] = df['protons'] - df['antiprotons']
 # ReLU and Linear sets need to be made into integer values.
 df['linear'] = df['linear'].astype('int')
 df['relu'] = df['relu'].astype('int')
@@ -38,7 +39,7 @@ for i in range(1, 32):
     epd_sum += df['ring{}'.format(i+1)]
 df['epd_sum'] = epd_sum.astype('int')
 
-""" Plots turned off for now.
+# Plots turned on for now.
 # Let's do a plot of the centrality measures (X).
 plt.hist(df['epd_sum'], bins=750, range=(0, 750), histtype='step', density=True, label=r'$X_{\Sigma}$',
          color='g', alpha=0.5, lw=2)
@@ -72,7 +73,7 @@ ax[1].set_ylabel(r'$X_{ReLU}$', fontsize=15)
 fig.colorbar(im1, ax=ax[1])
 plt.show()
 plt.close()
-"""
+
 # TODO Make this portion into split portions which create analysis output distributions.
 # TODO Probably would be good to have in the neighborhood of 5-10+, but it will depend
 # TODO on the statistics for each centrality integer.
@@ -83,7 +84,7 @@ c_jack = [[], [], [], []]
 for i in range(4):
     for j in range(4):
         c_jack[i].append([])
-iterations = 4
+iterations = 8
 full_length = len(df['relu'])
 part_length = int(full_length/iterations)
 """
@@ -161,10 +162,10 @@ for guy in distros:
     df_lin['n'] = n_vals[2]
     df_relu['n'] = n_vals[3]
     count += 1
-    df_rm3.to_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\rm3_cumulants{}.pkl'.format(count))
-    df_sum.to_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\sum_cumulants{}.pkl'.format(count))
-    df_lin.to_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\lin_cumulants{}.pkl'.format(count))
-    df_relu.to_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\relu_cumulants{}.pkl'.format(count))
+    df_rm3.to_pickle(r'C:\200\ML_Jackknife\rm3_cumulants{}.pkl'.format(count))
+    df_sum.to_pickle(r'C:\200\ML_Jackknife\sum_cumulants{}.pkl'.format(count))
+    df_lin.to_pickle(r'C:\200\ML_Jackknife\lin_cumulants{}.pkl'.format(count))
+    df_relu.to_pickle(r'C:\200\ML_Jackknife\relu_cumulants{}.pkl'.format(count))
     print(count, "of", iterations, "is all pickled.")
 
 quit()

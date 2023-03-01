@@ -30,19 +30,29 @@ Each dataframe has the centrality metric, cumulants c1-c4, cumulant ratios cr1-c
 cr1 = c1), and number of entries n at that centrality metric.
 The "n" values are for doing CBWC only; they don't factor into the jackknife.
 """
+
 dfs = []
 for i in range(1, iterations + 1):
     dfs.append([])
-    df_rm3 = pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\rm3_cumulants{}.pkl'.format(i))
-    df_sum = pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\sum_cumulants{}.pkl'.format(i))
-    df_lin = pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\lin_cumulants{}.pkl'.format(i))
-    df_relu = pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\relu_cumulants{}.pkl'.format(i))
+    df_rm3 = \
+        pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\rm3_cumulants{}.pkl'.format(i))
+    df_sum = \
+        pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\sum_cumulants{}.pkl'.format(i))
+    df_lin = \
+        pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\lin_cumulants{}.pkl'.format(i))
+    df_relu = \
+        pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\relu_cumulants{}.pkl'.format(i))
     dfs[i - 1].append(df_rm3)
     dfs[i - 1].append(df_sum)
     dfs[i - 1].append(df_lin)
     dfs[i - 1].append(df_relu)
 
 labels = [r'$C_1$', r'$C_2$', r'$C_3$', r'$C_4$']
+
+"""
+The above are already in the format needed; they simply need to have cbwc applied and then
+be handled via mean/SEM from the jackknife.
+"""
 
 # Find percentile (quantile) based centrality.
 cent_range = (95, 90, 80, 70, 60, 50, 40, 30, 20, 10)
@@ -59,6 +69,61 @@ for i in range(4):  # For the RM class.
 # These are from GMC simulations for RM3 and ReLU (not really possible to do GMC on the others).
 cent[0] = [2., 6., 14., 29., 55., 94., 153., 239., 362., 446.]
 cent[3] = [2., 7., 17., 33., 60., 100., 157., 238., 351., 428.]
+
+"""
+This is to set up CBWC from the outset for each jackknife iteration.
+"""
+
+c_cbwc = []
+cr_cbwc = []
+cumu_nams = ['c1', 'c2', 'c3', 'c4', 'cr1', 'cr2', 'cr3', 'cr4']
+
+"""
+These loops create the cbwc values for each cumulant/ratio for each jackknife disctribution.
+"""
+for s in range(iterations):  # jackknife loop
+    c_cbwc.append([])
+    cr_cbwc.append([])
+    for i in range(4):  # centrality metric loop
+        df = dfs[s][i]  # This is the sth jackknife and the ith centrality measure
+        c_cbwc[s].append([])
+        cr_cbwc[s].append([])
+        centrality = cent[i]
+        for j in range(4):  # cumulant order loop?
+            c_cbwc[s][i].append([])
+            cr_cbwc[s][i].append([])
+            c_arr = df[cumu_nams[j]][df[rm_class[i]] <= centrality[0]]
+            cr_arr = df[cumu_nams[j+4]][df[rm_class[i]] <= centrality[0]]
+            n_arr = df['n'][df[rm_class[i]] <= centrality[0]]
+            arr_cbwc = np.sum(c_arr*n_arr) / (np.sum(n_arr))
+            rarr_cbwc = np.sum(cr_arr*n_arr) / (np.sum(n_arr))
+            c_cbwc[s][i][j].append(arr_cbwc)
+            cr_cbwc[s][i][j].append(rarr_cbwc)
+        for k in range(len(centrality) - 1):
+            arr_index = (np.asarray(rm_vals[i]) > centrality[k]) & (np.asarray(rm_vals[i]) <= centrality[k + 1])
+            for j in range(4):
+                c_arr = df[cumu_nams[j]][(df[rm_class[i]] > centrality[k]) & (df[rm_class[i]] <= centrality[k + 1])]
+                cr_arr = df[cumu_nams[j+4]][(df[rm_class[i]] > centrality[k]) & (df[rm_class[i]] <= centrality[k + 1])]
+                n_arr = df['n'][(df[rm_class[i]] > centrality[k]) & (df[rm_class[i]] <= centrality[k + 1])]
+                arr_cbwc = np.sum(c_arr * n_arr) / (np.sum(n_arr))
+                rarr_cbwc = np.sum(cr_arr * n_arr) / (np.sum(n_arr))
+                c_cbwc[s][i][j].append(arr_cbwc)
+                cr_cbwc[s][i][j].append(rarr_cbwc)
+        for j in range(4):
+            c_arr = df[cumu_nams[j]][df[rm_class[i]] > centrality[-1]]
+            cr_arr = df[cumu_nams[j+4]][df[rm_class[i]] > centrality[-1]]
+            n_arr = df['n'][df[rm_class[i]] > centrality[-1]]
+            arr_cbwc = np.sum(c_arr*n_arr) / (np.sum(n_arr))
+            rarr_cbwc = np.sum(cr_arr*n_arr) / (np.sum(n_arr))
+            c_cbwc[s][i][j].append(arr_cbwc)
+            cr_cbwc[s][i][j].append(rarr_cbwc)
+print(c_cbwc[:, 0][0])
+plt.plot()
+plt.show()
+
+#####################################################################################
+# OLD CODE BELOW ####################################################################
+#####################################################################################
 
 # Get the distributions for the cumulants for each integer RM,
 # and make arrays to hold mean and error.
@@ -86,6 +151,13 @@ for i in range(4):
         for k in range(4):
             c_arr[i][k].append([])
             cr_arr[i][k].append([])
+
+"""
+I need to take the c and cr values for each integer array by jackknife iteration and
+cbwc them, then I end up with arrays (1 per jackknife iteration) with centrality separated,
+cbwc values. Then I can take the average of each over the iterations and the SEM for those
+averages.
+"""
 
 for i in range(4):  # RM type loop
     for j in range(iterations):  # Jackknife iteration loop
@@ -165,7 +237,7 @@ def arr_maker(a, b, c, d):
     narr = np.asarray(narr[index])
     numer = np.sum(carr * narr)
     denom = np.sum(narr)
-    return numer/denom
+    return numer / denom
 
 
 for i in range(4):
@@ -184,8 +256,8 @@ for i in range(4):
         cr_cbwc[i][j].append(crarr)
         erarr = arr_maker(cr_mv[i][j][1], cr_mv[i][j][1], n[i], arr_index)
         er_cbwc[i][j].append(erarr)
-    for k in range(len(centrality)-1):
-        arr_index = (np.asarray(rm_vals[i]) > centrality[k]) & (np.asarray(rm_vals[i]) <= centrality[k+1])
+    for k in range(len(centrality) - 1):
+        arr_index = (np.asarray(rm_vals[i]) > centrality[k]) & (np.asarray(rm_vals[i]) <= centrality[k + 1])
         for j in range(4):
             carr = arr_maker(c_mv[i][j][1], c_mv[i][j][0], n[i], arr_index)
             c_cbwc[i][j].append(carr)
@@ -248,7 +320,7 @@ for i in range(2):
     for j in range(2):
         x = i * 2 + j
         for k in range(4):
-            ax[i, j].errorbar(x_range[2:]+(0.1*k), cr_cbwc[k][x][2:], yerr=er_cbwc[k][x][2:],
+            ax[i, j].errorbar(x_range[2:] + (0.1 * k), cr_cbwc[k][x][2:], yerr=er_cbwc[k][x][2:],
                               marker=marker[k], color=color[k], ms=10, mfc=color[k], elinewidth=1, lw=0,
                               ecolor=color[k], label=rm_label[k], alpha=0.5)
         ax[i, j].set_xlabel('Centrality class', fontsize=15)
@@ -267,7 +339,7 @@ for i in range(2):
     for j in range(2):
         x = i * 2 + j
         for k in range(4):
-            ax[i, j].errorbar(x_range[2:]+(0.1*k), c_cbwc[k][x][2:], yerr=e_cbwc[k][x][2:],
+            ax[i, j].errorbar(x_range[2:] + (0.1 * k), c_cbwc[k][x][2:], yerr=e_cbwc[k][x][2:],
                               marker=marker[k], color=color[k], ms=10, mfc=color[k], elinewidth=1, lw=0,
                               ecolor=color[k], label=rm_label[k], alpha=0.5)
         ax[i, j].set_xlabel('Centrality class', fontsize=15)
@@ -287,7 +359,7 @@ for i in range(2):
     for j in range(2):
         x = i * 2 + j
         for k in (0, 3):
-            ax[i, j].errorbar(x_range[2:]+(0.1*k), cr_cbwc[k][x][2:], yerr=er_cbwc[k][x][2:],
+            ax[i, j].errorbar(x_range[2:] + (0.1 * k), cr_cbwc[k][x][2:], yerr=er_cbwc[k][x][2:],
                               marker=marker[k], color=color[k], ms=10, mfc=color[k], elinewidth=1, lw=0,
                               ecolor=color[k], label=rm_label[k], alpha=0.5)
         ax[i, j].set_xlabel('Centrality class', fontsize=15)
@@ -306,7 +378,7 @@ for i in range(2):
     for j in range(2):
         x = i * 2 + j
         for k in (0, 3):
-            ax[i, j].errorbar(x_range[2:]+(0.1*k), c_cbwc[k][x][2:], yerr=e_cbwc[k][x][2:],
+            ax[i, j].errorbar(x_range[2:] + (0.1 * k), c_cbwc[k][x][2:], yerr=e_cbwc[k][x][2:],
                               marker=marker[k], color=color[k], ms=10, mfc=color[k], elinewidth=1, lw=0,
                               ecolor=color[k], label=rm_label[k], alpha=0.5)
         ax[i, j].set_xlabel('Centrality class', fontsize=15)

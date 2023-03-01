@@ -20,7 +20,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-os.chdir(r'C:\200\PythonArrays')
+os.chdir(r'C:\200\QA_Arrays')
 aves = np.load('ave_aves.npy', allow_pickle=True).T
 stds = np.load('ave_stds.npy', allow_pickle=True).T
 runs = np.load('ave_runs.npy', allow_pickle=True)
@@ -49,7 +49,7 @@ for i in range(40):
         stds[i] = np.divide(stds[i], np.sqrt(runs[2]))
 
 ave_ave = np.mean(aves, axis=1)
-std_ave = np.std(aves, axis=1)
+std_ave = np.std(aves, axis=1)*3
 bad_runs = []
 for i in range(len(aves)):
     arr = (aves[i] > (ave_ave[i] + std_ave[i])) | (aves[i] < (ave_ave[i] - std_ave[i]))

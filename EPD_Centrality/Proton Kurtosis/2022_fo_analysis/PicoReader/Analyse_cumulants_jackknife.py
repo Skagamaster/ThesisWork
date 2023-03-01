@@ -33,10 +33,10 @@ The "n" values are for doing CBWC only; they don't factor into the jackknife.
 dfs = []
 for i in range(1, iterations + 1):
     dfs.append([])
-    df_rm3 = pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\rm3_cumulants{}.pkl'.format(i))
-    df_sum = pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\sum_cumulants{}.pkl'.format(i))
-    df_lin = pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\lin_cumulants{}.pkl'.format(i))
-    df_relu = pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\relu_cumulants{}.pkl'.format(i))
+    df_rm3 = pd.read_pickle(r'C:\200\ML_Jackknife\rm3_cumulants{}.pkl'.format(i))
+    df_sum = pd.read_pickle(r'C:\200\ML_Jackknife\sum_cumulants{}.pkl'.format(i))
+    df_lin = pd.read_pickle(r'C:\200\ML_Jackknife\lin_cumulants{}.pkl'.format(i))
+    df_relu = pd.read_pickle(r'C:\200\ML_Jackknife\relu_cumulants{}.pkl'.format(i))
     dfs[i - 1].append(df_rm3)
     dfs[i - 1].append(df_sum)
     dfs[i - 1].append(df_lin)
@@ -56,9 +56,9 @@ for i in range(4):  # For the RM class.
     cent[i] = np.percentile(arr, cent_range)[::-1]
     rm_vals.append(np.unique(arr))
 
-# These are from GMC simulations for RM3 and ReLU (not really possible to do GMC on the others).
-cent[0] = [2., 6., 14., 29., 55., 94., 153., 239., 362., 446.]
-cent[3] = [2., 7., 17., 33., 60., 100., 157., 238., 351., 428.]
+# These are from GMC simulations for RM3 and ReLU for 14 GeV (not really possible to do GMC on the others).
+# cent[0] = [2., 6., 14., 29., 55., 94., 153., 239., 362., 446.]
+# cent[3] = [2., 7., 17., 33., 60., 100., 157., 238., 351., 428.]
 
 # Get the distributions for the cumulants for each integer RM.
 c_arr = [[[], [], [], []],

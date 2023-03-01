@@ -35,16 +35,16 @@ learning (ML) methods.
 """
 
 # Inputs:
-energy = 14  # The COM energy of your data.
+energy = 200  # The COM energy of your data.
 urqmd = False  # Simulation or live data ("True" if simulation)
 target_str = 'refmult3'  # Which to target: refmult3 or refmult1
-file_loc = r'D:\14GeV\Thesis\PythonArrays\Analysis_Proton_Arrays'  # Data drive
-save_loc = r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML'  # ML folder
+file_loc = r'C:\200\PythonArrays\Analysis_Proton_Arrays'  # Data drive
+save_loc = r'C:\200\ML'  # ML folder
 
 """None of the below should have to be modified, though it can of course
 be if you want to make tweaks."""
 
-gev = 14
+gev = 200
 if energy == 200:
     gev = 200
 elif energy == 11:
@@ -61,13 +61,15 @@ First, we'll need to load our datasets. These will be different depending on if 
 are doing UrQMD simulation or actual, STAR data.
 """
 os.chdir(file_loc)
-df = pd.read_pickle('trunc_set.pkl')
+df = pd.read_pickle('full_set.pkl')
 refmult3 = df['RefMult3'].to_numpy()
-refmult3 = refmult3[-2232269:]
+# If you need truncation.
+# refmult3 = refmult3[-2232269:]
 rings = []
 for i in range(32):
     arr = df['ring{}'.format(i+1)].to_numpy()
-    arr = arr[-2232269:]
+    # If you need truncation.
+    # arr = arr[-2232269:]
     rings.append(arr)
 rings = np.asarray(rings)
 target = refmult3
@@ -111,7 +113,7 @@ for i in range(len(actFunc)):
 np.save("predictions_{}_{}.npy".format(energy, target_str), predictions)
 df['linear'] = predictions[0]
 df['relu'] = predictions[1]
-df.to_pickle('trunc_set.pkl')
+df.to_pickle('full_set.pkl')
 
 fig, ax = plt.subplots(1, 2, figsize=(16, 9), constrained_layout=True)
 m_ref = int(np.max(target)*1.2)

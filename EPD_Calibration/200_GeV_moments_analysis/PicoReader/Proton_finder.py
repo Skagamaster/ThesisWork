@@ -20,7 +20,7 @@ saveDirect is where the bad run list is stored
 finalDirect is for what this code finds
 
 The output will be arrays of the following:
-RunID, events, RefMult3, protons, antiprotons, EPD rings
+RunID, events, RefMult3, protons, antiprotons, EPD rings.
 All will be eventwise correlated. This makes for a large,
 final data set, but then all the statistical work can be
 performed elsewhere (with the benefit of preserving all
@@ -39,8 +39,8 @@ from scipy.signal import savgol_filter as sgf
 import uproot as up
 import awkward as ak
 
-dataDirect = r"F:\2019Picos\14p5GeV\Runs"
-saveDirect = r"D:\14GeV\Thesis\PythonArrays"
+dataDirect = r"F:\AuAu200\Runs"
+saveDirect = r"C:\200\PythonArrays"
 
 os.chdir(saveDirect)
 bad_runs = np.load("badruns.npy", allow_pickle=True)
@@ -142,19 +142,19 @@ pbp_count, pbp_binsX, pbp_binsY = np.histogram2d([0], [0], bins=a, range=((0.5, 
 # dE/dx vs p*q (after selection)
 pdEp_count, pdEp_binsX, pdEp_binsY = np.histogram2d([0], [0], bins=a, range=((-3, 3), (0, 31)))
 """
-These are to load the files for 14.5 GeV nMIP calibration for the EPD in FastOffline.
+These are to load the files for 200 GeV nMIP calibration for the EPD in FastOffline.
 """
-cal_set = np.asarray([94, 105, 110, 113, 114, 123, 138, 139])
+cal_set = np.asarray([191, 192, 193])
 cal_files = []
 for i in cal_set:
-    cal_files.append(np.loadtxt(r'D:\14GeV\ChiFit\adc{}.txt'.format(i), delimiter=','))
+    cal_files.append(np.load(r'C:\200\cal_vals\200_GeV_spectra_fix_day_{}.npy'.format(i), allow_pickle=True))
 """
 And now to load up our nSigmaProton mean shift calibrations, separated into
 bins in p_T in 0.1 increments from 0.1 to 1.2 (11 bins). run_cal is the
 corresponding run for each 11D entry in nSigCal.
 """
-nSigCal = np.load(r'D:\14GeV\Thesis\PythonArrays\nSigmaCal.npy', allow_pickle=True)
-run_cal = np.load(r'D:\14GeV\Thesis\PythonArrays\runs.npy', allow_pickle=True)
+nSigCal = np.load(r'C:\200\PythonArrays\nSigmaCal.npy', allow_pickle=True)
+run_cal = np.load(r'C:\200\PythonArrays\runs.npy', allow_pickle=True)
 
 """
 Let's run it!
