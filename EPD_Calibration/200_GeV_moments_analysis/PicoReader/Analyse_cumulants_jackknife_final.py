@@ -18,6 +18,11 @@ from scipy.stats import skew, kurtosis, moment
 import pico_reader as pr
 
 iterations = 8  # MUST match with "iterations" in Proton_Analysis_jackknife.py!
+energy = 14  # 14 for 14.6 GeV, 200 for 200 GeV
+name_str = r'C:\200\ML_Jackknife\{}_cumulants{}.pkl'
+if energy == 14:
+    name_str = r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_{}\{}_cumulants{}.pkl'
+rm_name = ['rm3', 'sum', 'lin', 'relu']
 
 # Import our cumulant dataframes.
 """
@@ -34,18 +39,25 @@ The "n" values are for doing CBWC only; they don't factor into the jackknife.
 dfs = []
 for i in range(1, iterations + 1):
     dfs.append([])
-    df_rm3 = \
-        pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\rm3_cumulants{}.pkl'.format(i))
-    df_sum = \
-        pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\sum_cumulants{}.pkl'.format(i))
-    df_lin = \
-        pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\lin_cumulants{}.pkl'.format(i))
-    df_relu = \
-        pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\relu_cumulants{}.pkl'.format(i))
+    if energy == 14:
+        for j in range(4):
+            dfs[i - 1].append(pd.read_pickle(name_str.format(iterations, rm_name[j], i)))
+    else:
+        for j in range(4):
+            dfs[i - 1].append(pd.read_pickle(name_str.format(rm_name[j], i)))
+        """
+        df_sum = \
+            pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\sum_cumulants{}.pkl'.format(i))
+        df_lin = \
+            pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\lin_cumulants{}.pkl'.format(i))
+        df_relu = \
+            pd.read_pickle(r'D:\14GeV\Thesis\Proton_Analysis_WIP\ML_Jackknife\iterations_8\relu_cumulants{}.pkl'.format(i))
+        
     dfs[i - 1].append(df_rm3)
     dfs[i - 1].append(df_sum)
     dfs[i - 1].append(df_lin)
     dfs[i - 1].append(df_relu)
+        """
 
 labels = [r'$C_1$', r'$C_2$', r'$C_3$', r'$C_4$']
 
@@ -67,8 +79,9 @@ for i in range(4):  # For the RM class.
     rm_vals.append(np.unique(arr))
 
 # These are from GMC simulations for RM3 and ReLU (not really possible to do GMC on the others).
-cent[0] = [2., 6., 14., 29., 55., 94., 153., 239., 362., 446.]
-cent[3] = [2., 7., 17., 33., 60., 100., 157., 238., 351., 428.]
+if energy == 14:
+    cent[0] = [2., 6., 14., 29., 55., 94., 153., 239., 362., 446.]
+    cent[3] = [2., 7., 17., 33., 60., 100., 157., 238., 351., 428.]
 
 """
 This is to set up CBWC from the outset for each jackknife iteration.
@@ -93,17 +106,18 @@ for s in range(iterations):  # jackknife loop
             c_cbwc[s][i].append([])
             cr_cbwc[s][i].append([])
             c_arr = df[cumu_nams[j]][df[rm_class[i]] <= centrality[0]]
-            cr_arr = df[cumu_nams[j+4]][df[rm_class[i]] <= centrality[0]]
+            cr_arr = df[cumu_nams[j + 4]][df[rm_class[i]] <= centrality[0]]
             n_arr = df['n'][df[rm_class[i]] <= centrality[0]]
-            arr_cbwc = np.sum(c_arr*n_arr) / (np.sum(n_arr))
-            rarr_cbwc = np.sum(cr_arr*n_arr) / (np.sum(n_arr))
+            arr_cbwc = np.sum(c_arr * n_arr) / (np.sum(n_arr))
+            rarr_cbwc = np.sum(cr_arr * n_arr) / (np.sum(n_arr))
             c_cbwc[s][i][j].append(arr_cbwc)
             cr_cbwc[s][i][j].append(rarr_cbwc)
         for k in range(len(centrality) - 1):
             arr_index = (np.asarray(rm_vals[i]) > centrality[k]) & (np.asarray(rm_vals[i]) <= centrality[k + 1])
             for j in range(4):
                 c_arr = df[cumu_nams[j]][(df[rm_class[i]] > centrality[k]) & (df[rm_class[i]] <= centrality[k + 1])]
-                cr_arr = df[cumu_nams[j+4]][(df[rm_class[i]] > centrality[k]) & (df[rm_class[i]] <= centrality[k + 1])]
+                cr_arr = df[cumu_nams[j + 4]][
+                    (df[rm_class[i]] > centrality[k]) & (df[rm_class[i]] <= centrality[k + 1])]
                 n_arr = df['n'][(df[rm_class[i]] > centrality[k]) & (df[rm_class[i]] <= centrality[k + 1])]
                 arr_cbwc = np.sum(c_arr * n_arr) / (np.sum(n_arr))
                 rarr_cbwc = np.sum(cr_arr * n_arr) / (np.sum(n_arr))
@@ -111,13 +125,13 @@ for s in range(iterations):  # jackknife loop
                 cr_cbwc[s][i][j].append(rarr_cbwc)
         for j in range(4):
             c_arr = df[cumu_nams[j]][df[rm_class[i]] > centrality[-1]]
-            cr_arr = df[cumu_nams[j+4]][df[rm_class[i]] > centrality[-1]]
+            cr_arr = df[cumu_nams[j + 4]][df[rm_class[i]] > centrality[-1]]
             n_arr = df['n'][df[rm_class[i]] > centrality[-1]]
-            arr_cbwc = np.sum(c_arr*n_arr) / (np.sum(n_arr))
-            rarr_cbwc = np.sum(cr_arr*n_arr) / (np.sum(n_arr))
+            arr_cbwc = np.sum(c_arr * n_arr) / (np.sum(n_arr))
+            rarr_cbwc = np.sum(cr_arr * n_arr) / (np.sum(n_arr))
             c_cbwc[s][i][j].append(arr_cbwc)
             cr_cbwc[s][i][j].append(rarr_cbwc)
-print(c_cbwc[:, 0][0])
+print(c_cbwc[0][0][0])
 plt.plot()
 plt.show()
 
